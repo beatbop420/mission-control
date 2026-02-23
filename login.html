@@ -70,7 +70,7 @@
             margin-bottom: 28px;
         }
 
-        /* Email input */
+        /* Input fields */
         .login-input {
             width: 100%;
             padding: 14px 16px;
@@ -155,14 +155,17 @@
 
         <!-- Title -->
         <h1 class="login-title">MISSION CONTROL</h1>
-        <p class="login-subtitle">enter your email to get a magic login link</p>
+        <p class="login-subtitle">enter your password to get in</p>
 
-        <!-- Email input -->
-        <input type="email" class="login-input" id="login-email" placeholder="your email" autocomplete="email">
+        <!-- Email (hidden — auto-filled since only one user) -->
+        <input type="hidden" id="login-email" value="petdevo@gmail.com">
 
-        <!-- Send link button -->
-        <button class="login-btn" id="login-btn" onclick="sendMagicLink()">
-            Send Magic Link ✨
+        <!-- Password input -->
+        <input type="password" class="login-input" id="login-password" placeholder="password" autocomplete="current-password">
+
+        <!-- Login button -->
+        <button class="login-btn" id="login-btn" onclick="login()">
+            Enter the Castle ✨
         </button>
 
         <!-- Status message -->
@@ -173,12 +176,6 @@
     </div>
 
     <script>
-        // === APPROVED EMAILS ===
-        // Only these emails can log in. Add more to the list anytime.
-        const APPROVED_EMAILS = [
-            'petdevo@gmail.com'
-        ];
-
         // Check if already logged in — if so, go straight to dashboard
         async function checkAuth() {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -188,59 +185,83 @@
         }
         checkAuth();
 
-        // Send a magic link to the email entered
-        async function sendMagicLink() {
-            const email = document.getElementById('login-email').value.trim().toLowerCase();
+        // Log in with email + password
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
             const btn = document.getElementById('login-btn');
             const status = document.getElementById('login-status');
 
-            // Make sure they typed something
-            if (!email) {
-                status.textContent = 'type your email first, babe';
+            if (!password) {
+                status.textContent = 'type your password first, babe';
                 status.className = 'login-status error';
                 return;
             }
 
-            // Check if this email is on the approved list
-            if (!APPROVED_EMAILS.includes(email)) {
-                status.textContent = 'this castle is by invitation only';
-                status.className = 'login-status error';
-                return;
-            }
-
-            // Disable button while sending
+            // Disable button while logging in
             btn.disabled = true;
-            btn.textContent = 'Sending...';
+            btn.textContent = 'Opening gates...';
             status.textContent = '';
 
-            // Ask Supabase to send the magic link email
-            const { error } = await supabaseClient.auth.signInWithOtp({
+            // Try to sign in with Supabase
+            const { error } = await supabaseClient.auth.signInWithPassword({
                 email: email,
-                options: {
-                    // Resolves to the correct path whether on GitHub Pages or custom domain
-                    emailRedirectTo: new URL('index.html', window.location.href).href
-                }
+                password: password
             });
 
             if (error) {
-                status.textContent = 'something went wrong: ' + error.message;
-                status.className = 'login-status error';
-                btn.disabled = false;
-                btn.textContent = 'Send Magic Link ✨';
-            } else {
-                status.textContent = 'check your email! click the link to get in ✨';
-                status.className = 'login-status success';
-                btn.textContent = 'Link Sent!';
+                // If user doesn't exist yet, sign them up (first time only)
+                if (error.message.includes('Invalid login credentials')) {
+                    const { error: signUpError } = await supabaseClient.auth.signUp({
+                        email: email,
+                        password: password
+                    });
+
+                    if (signUpError) {
+                        status.textContent = 'something went wrong: ' + signUpError.message;
+                        status.className = 'login-status error';
+                        btn.disabled = false;
+                        btn.textContent = 'Enter the Castle ✨';
+                        return;
+                    }
+
+                    // Sign up worked — now sign in
+                    const { error: retryError } = await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+
+                    if (retryError) {
+                        // Supabase might require email confirmation
+                        status.textContent = 'account created! check your email to confirm, then try again';
+                        status.className = 'login-status success';
+                        btn.disabled = false;
+                        btn.textContent = 'Enter the Castle ✨';
+                        return;
+                    }
+                } else {
+                    status.textContent = 'something went wrong: ' + error.message;
+                    status.className = 'login-status error';
+                    btn.disabled = false;
+                    btn.textContent = 'Enter the Castle ✨';
+                    return;
+                }
             }
+
+            // Success — go to dashboard
+            window.location.href = 'index.html';
         }
 
-        // Let Enter key submit the form
-        document.getElementById('login-email').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') sendMagicLink();
+        // Let Enter key submit
+        document.getElementById('login-password').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') login();
         });
+
+        // Auto-focus the password field
+        document.getElementById('login-password').focus();
     </script>
 
-    <!-- Register the service worker — makes the app installable + offline-capable -->
+    <!-- Register the service worker -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
