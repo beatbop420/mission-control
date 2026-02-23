@@ -5439,51 +5439,7 @@
         // 4. Then launches everything like normal
 
         async function initApp() {
-            // Step 1: Check if logged in
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                // Not logged in — go to login page
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // Step 2: Try to pull data from the cloud
-            const hadCloudData = await syncFromCloud();
-
-            // Step 3: If cloud was empty, push local data up (one-time migration)
-            if (!hadCloudData) {
-                await migrateLocalToCloud();
-            }
-
-            // Step 4: Now reload all the JS variables from localStorage
-            // (they were set at the top of the file, but cloud sync may have updated them)
-            finAccounts = loadData('fin_accounts') || [];
-            finBills = loadData('fin_bills') || [];
-            finIncome = loadData('fin_income') || [];
-            finTransactions = loadData('fin_transactions') || [];
-            finDebts = loadData('fin_debts') || [];
-            finEmergencyFund = loadData('fin_emergency') || { goal: 0, current: 0 };
-            buckets = loadData('buckets') || {
-                fixed: { balance: 0, needed: 0 },
-                safety: { balance: 0, goal: 1000 },
-                life: { balance: 0, budgetPerPaycheck: 400 },
-                dopamine: { balance: 0, budgetPerPaycheck: 150 }
-            };
-            bucketSettings = loadData('bucket_settings') || {
-                safetyAmount: 50,
-                lifeBudget: 400,
-                dopamineBudget: 150,
-                cashWithdraw: 40,
-                nextPayday: '2026-03-06',
-                payFrequency: 14
-            };
-            paycheckLog = loadData('paycheck_log') || [];
-            cycleEntries = loadData('cycle_entries') || [];
-            kidLogs = loadData('kid_logs') || [];
-            timestamps = loadData('timestamps') || [];
-            symptomLog = loadData('symptom_log') || [];
-
-            // Step 5: Now launch everything (same as before)
+            // No login needed — just launch everything
             preloadFinanceData();
             runAutomations();
 
