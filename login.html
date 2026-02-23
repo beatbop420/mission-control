@@ -204,7 +204,8 @@
             const { error } = await supabaseClient.auth.signInWithOtp({
                 email: email,
                 options: {
-                    emailRedirectTo: window.location.origin + '/index.html'
+                    // Resolves to the correct path whether on GitHub Pages or custom domain
+                    emailRedirectTo: new URL('index.html', window.location.href).href
                 }
             });
 
@@ -229,7 +230,7 @@
     <!-- Register the service worker — makes the app installable + offline-capable -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('sw.js')
                 .then(() => console.log('Service worker registered'))
                 .catch(err => console.log('Service worker registration failed:', err));
         }

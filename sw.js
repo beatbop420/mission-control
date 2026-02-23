@@ -4,15 +4,19 @@
 
 const CACHE_NAME = 'mission-control-v1';
 
-// Files to save for offline use
+// Figure out where the app lives (works on both GitHub Pages and custom domains)
+// On GitHub Pages: /mission-control/  |  On custom domain: /
+const BASE = self.location.pathname.replace('sw.js', '');
+
+// Files to save for offline use (paths relative to where the app is hosted)
 const FILES_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/login.html',
-    '/supabase-config.js',
-    '/manifest.json',
-    '/icons/icon-192.png',
-    '/icons/icon-512.png'
+    BASE,
+    BASE + 'index.html',
+    BASE + 'login.html',
+    BASE + 'supabase-config.js',
+    BASE + 'manifest.json',
+    BASE + 'icons/icon-192.png',
+    BASE + 'icons/icon-512.png'
 ];
 
 // INSTALL: when the service worker first sets up, cache all the core files

@@ -2,7 +2,7 @@
     "name": "Mission Control",
     "short_name": "Mission Control",
     "description": "Your princess command center for life management",
-    "start_url": "/index.html",
+    "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#1a1216",
     "theme_color": "#1a1216",
