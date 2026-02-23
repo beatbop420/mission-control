@@ -173,6 +173,12 @@
     </div>
 
     <script>
+        // === APPROVED EMAILS ===
+        // Only these emails can log in. Add more to the list anytime.
+        const APPROVED_EMAILS = [
+            'petdevo@gmail.com'
+        ];
+
         // Check if already logged in — if so, go straight to dashboard
         async function checkAuth() {
             const { data: { user } } = await supabaseClient.auth.getUser();
@@ -184,13 +190,20 @@
 
         // Send a magic link to the email entered
         async function sendMagicLink() {
-            const email = document.getElementById('login-email').value.trim();
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
             const btn = document.getElementById('login-btn');
             const status = document.getElementById('login-status');
 
             // Make sure they typed something
             if (!email) {
                 status.textContent = 'type your email first, babe';
+                status.className = 'login-status error';
+                return;
+            }
+
+            // Check if this email is on the approved list
+            if (!APPROVED_EMAILS.includes(email)) {
+                status.textContent = 'this castle is by invitation only';
                 status.className = 'login-status error';
                 return;
             }
