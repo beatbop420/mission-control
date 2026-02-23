@@ -5439,7 +5439,24 @@
         // 4. Then launches everything like normal
 
         async function initApp() {
-            // No login needed — just launch everything
+            // Step 1: Check if logged in — if not, go to login page
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) {
+                window.location.href = 'login.html';
+                return; // stop here, don't load anything
+            }
+
+            // Step 2: Pull latest data from Supabase into localStorage
+            // So phone + PC always have the same data
+            const cloudHadData = await syncFromCloud();
+
+            // Step 3: If cloud was empty but localStorage has stuff,
+            // push it up (one-time migration for first cloud login)
+            if (!cloudHadData) {
+                await migrateLocalToCloud();
+            }
+
+            // Step 4: Launch everything like normal
             preloadFinanceData();
             runAutomations();
 
