@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control — Login</title>
+
+    <!-- PWA stuff -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1216">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- Lexend font -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #1a1216;
+            color: #d4ccc8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* The login card — centered on screen */
+        .login-card {
+            background-color: #2a1f24;
+            border-radius: 16px;
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(212, 132, 154, 0.1);
+            border: 1px solid #3d2f35;
+        }
+
+        /* Crown at the top */
+        .login-crown {
+            font-size: 64px;
+            display: block;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 2px 12px rgba(232, 184, 75, 0.4));
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #9a8a92;
+            font-weight: 300;
+            margin-bottom: 28px;
+        }
+
+        /* Email input */
+        .login-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #1a1216;
+            border: 1px solid #3d2f35;
+            border-radius: 10px;
+            color: #d4ccc8;
+            font-family: 'Lexend', sans-serif;
+            font-size: 15px;
+            margin-bottom: 14px;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #d4849a;
+            box-shadow: 0 0 0 3px rgba(212, 132, 154, 0.15);
+        }
+
+        .login-input::placeholder {
+            color: #6b5660;
+        }
+
+        /* Login button */
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #d4849a, #b48db5);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'Lexend', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(212, 132, 154, 0.3);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Status message below button */
+        .login-status {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #9a8a92;
+            min-height: 20px;
+        }
+
+        .login-status.success {
+            color: #b48db5;
+        }
+
+        .login-status.error {
+            color: #d4849a;
+        }
+
+        /* Sparkle decoration */
+        .login-sparkle {
+            font-size: 12px;
+            color: #6b5660;
+            margin-top: 24px;
+            letter-spacing: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <!-- Crown -->
+        <span class="login-crown">👑</span>
+
+        <!-- Title -->
+        <h1 class="login-title">MISSION CONTROL</h1>
+        <p class="login-subtitle">enter your email to get a magic login link</p>
+
+        <!-- Email input -->
+        <input type="email" class="login-input" id="login-email" placeholder="your email" autocomplete="email">
+
+        <!-- Send link button -->
+        <button class="login-btn" id="login-btn" onclick="sendMagicLink()">
+            Send Magic Link ✨
+        </button>
+
+        <!-- Status message -->
+        <div class="login-status" id="login-status"></div>
+
+        <!-- Little sparkle decoration at the bottom -->
+        <div class="login-sparkle">✦ · ✧ · ✦</div>
+    </div>
+
+    <script>
+        // Check if already logged in — if so, go straight to dashboard
+        async function checkAuth() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                window.location.href = 'index.html';
+            }
+        }
+        checkAuth();
+
+        // Send a magic link to the email entered
+        async function sendMagicLink() {
+            const email = document.getElementById('login-email').value.trim();
+            const btn = document.getElementById('login-btn');
+            const status = document.getElementById('login-status');
+
+            // Make sure they typed something
+            if (!email) {
+                status.textContent = 'type your email first, babe';
+                status.className = 'login-status error';
+                return;
+            }
+
+            // Disable button while sending
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            status.textContent = '';
+
+            // Ask Supabase to send the magic link email
+            const { error } = await supabaseClient.auth.signInWithOtp({
+                email: email,
+                options: {
+                    emailRedirectTo: window.location.origin + '/index.html'
+                }
+            });
+
+            if (error) {
+                status.textContent = 'something went wrong: ' + error.message;
+                status.className = 'login-status error';
+                btn.disabled = false;
+                btn.textContent = 'Send Magic Link ✨';
+            } else {
+                status.textContent = 'check your email! click the link to get in ✨';
+                status.className = 'login-status success';
+                btn.textContent = 'Link Sent!';
+            }
+        }
+
+        // Let Enter key submit the form
+        document.getElementById('login-email').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') sendMagicLink();
+        });
+    </script>
+
+    <!-- Register the service worker — makes the app installable + offline-capable -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('Service worker registered'))
+                .catch(err => console.log('Service worker registration failed:', err));
+        }
+    </script>
+
+</body>
+</html>
