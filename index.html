@@ -5439,22 +5439,25 @@
         // 4. Then launches everything like normal
 
         async function initApp() {
-            // Step 1: Check if logged in — try cloud sync if yes, skip if no
-            // App ALWAYS works — auth just enables cloud sync between devices
+            // Step 1: Check if logged in
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
-                if (user) {
-                    // Logged in — pull latest data from cloud
-                    const cloudHadData = await syncFromCloud();
-                    // If cloud was empty, push local data up (one-time migration)
-                    if (!cloudHadData) {
-                        await migrateLocalToCloud();
-                    }
+                if (!user) {
+                    // Not logged in — send to login page
+                    window.location.href = 'login.html';
+                    return;
                 }
-                // If not logged in, that's fine — localStorage still works
+                // Logged in — pull latest data from cloud
+                const cloudHadData = await syncFromCloud();
+                // If cloud was empty, push local data up (one-time migration)
+                if (!cloudHadData) {
+                    await migrateLocalToCloud();
+                }
             } catch (e) {
-                // Supabase not reachable — no worries, localStorage mode
-                console.log('Cloud sync skipped:', e.message);
+                // Supabase not reachable — send to login just in case
+                console.log('Auth check failed:', e.message);
+                window.location.href = 'login.html';
+                return;
             }
 
             // Step 2: Launch everything — works with or without auth
