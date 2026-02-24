@@ -3840,7 +3840,7 @@
                 html += '<div class="advisor-section">';
                 html += '<div class="advisor-label">This Week</div>';
 
-                // Decide what to pay vs wait
+                // Decide what to pay vs wait — based on what you can ACTUALLY afford
                 let runningTotal = 0;
                 allActionable.forEach(b => {
                     const priority = getBillPriority(b);
@@ -3849,11 +3849,17 @@
                     let tagClass = '';
                     let rowClass = '';
 
-                    if (priority === 'critical') {
+                    if (priority === 'critical' && canAfford) {
+                        // Critical AND you have the money — pay it
                         tag = 'PAY NOW';
                         tagClass = 'advisor-tag-pay';
                         rowClass = 'critical';
                         runningTotal += b.amount;
+                    } else if (priority === 'critical' && !canAfford) {
+                        // Critical but you CAN'T afford it — call it out
+                        tag = nextPayday ? 'WAIT TIL ' + nextPayday.toLocaleDateString('en-US', {month:'short', day:'numeric'}) : 'CANT COVER';
+                        tagClass = 'advisor-tag-wait';
+                        rowClass = 'critical';
                     } else if (priority === 'important' && canAfford) {
                         tag = 'PAY NOW';
                         tagClass = 'advisor-tag-pay';
@@ -3864,8 +3870,8 @@
                         tagClass = 'advisor-tag-wait';
                         rowClass = 'important';
                     } else {
-                        tag = canAfford ? 'CAN WAIT' : 'SKIP';
-                        tagClass = canAfford ? 'advisor-tag-wait' : 'advisor-tag-skip';
+                        tag = 'SKIP';
+                        tagClass = 'advisor-tag-skip';
                         rowClass = 'flexible';
                     }
 
@@ -3895,32 +3901,41 @@
                 html += '</div>';
 
                 // The math summary
-                const afterBills = balance - runningTotal;
+                // runningTotal = only bills you CAN pay (tagged PAY NOW)
+                // totalDue = ALL unpaid bills due this week + overdue
+                const afterPayNow = balance - runningTotal; // what's left after paying PAY NOW bills
+                const shortfall = totalDue - balance; // how short you are for EVERYTHING
                 const daysUntilPayday = nextPayday ? Math.ceil((nextPayday - today) / (1000*60*60*24)) : null;
                 let summaryClass = 'good';
                 let summaryText = '';
 
-                if (afterBills < 0) {
+                if (shortfall > 0) {
+                    // Can't cover everything
                     summaryClass = 'short';
-                    summaryText = 'You\'re short ' + fmt$(Math.abs(afterBills)) + ' to cover everything. ';
-                    summaryText += 'Focus on the critical bills first.';
-                    if (daysUntilPayday) summaryText += ' Next payday is in ' + daysUntilPayday + ' days.';
-                } else if (afterBills < 100) {
+                    if (runningTotal > 0) {
+                        summaryText = 'Pay the ' + fmt$(runningTotal) + ' in PAY NOW bills. ';
+                        summaryText += 'You\'re short ' + fmt$(shortfall) + ' for the rest.';
+                    } else {
+                        summaryText = 'You\'re short ' + fmt$(shortfall) + ' to cover anything this week.';
+                    }
+                    if (daysUntilPayday) summaryText += ' Next payday in ' + daysUntilPayday + ' days.';
+                } else if (afterPayNow < 100) {
                     summaryClass = 'tight';
-                    summaryText = 'After must-pay bills you\'d have ' + fmt$(afterBills) + ' left. Tight but doable.';
+                    summaryText = 'You can cover everything but it\'ll leave ' + fmt$(afterPayNow) + '. Tight.';
                     if (daysUntilPayday) summaryText += ' Payday in ' + daysUntilPayday + ' days.';
                 } else {
-                    summaryText = 'After bills you\'d have ' + fmt$(afterBills) + ' left.';
+                    summaryText = 'You can cover everything with ' + fmt$(afterPayNow) + ' left over.';
                     if (daysUntilPayday) summaryText += ' Next payday in ' + daysUntilPayday + ' days.';
                 }
 
                 html += '<div class="advisor-summary ' + summaryClass + '">' + summaryText + '</div>';
 
-                // What's left for variable spending
-                const dailyBudget = daysUntilPayday && daysUntilPayday > 0 ? Math.max(0, afterBills) / daysUntilPayday : 0;
+                // What's left for variable spending (dog food, gas, groceries)
+                const leftover = Math.max(0, afterPayNow);
+                const dailyBudget = daysUntilPayday && daysUntilPayday > 0 ? leftover / daysUntilPayday : 0;
                 html += '<div class="advisor-leftover">';
                 html += '<div class="advisor-leftover-box"><div class="advisor-leftover-label">After Bills</div>';
-                html += '<div class="advisor-leftover-value" style="color:' + (afterBills < 0 ? '#d4849a' : afterBills < 100 ? '#e8b84b' : '#6bbf7b') + ';">' + fmt$(Math.max(0, afterBills)) + '</div></div>';
+                html += '<div class="advisor-leftover-value" style="color:' + (leftover < 50 ? '#d4849a' : leftover < 150 ? '#e8b84b' : '#6bbf7b') + ';">' + fmt$(leftover) + '</div></div>';
                 html += '<div class="advisor-leftover-box"><div class="advisor-leftover-label">Daily Budget</div>';
                 html += '<div class="advisor-leftover-value" style="color:' + (dailyBudget < 10 ? '#d4849a' : dailyBudget < 25 ? '#e8b84b' : '#6bbf7b') + ';">' + fmt$(dailyBudget) + '/day</div></div>';
                 html += '</div>';
@@ -5878,79 +5893,80 @@
             renderFinance();
         }
 
-        // --- BILL MIGRATIONS (called from initApp AFTER cloud sync) ---
+        // --- BILL DATA NORMALIZER (runs every page load — safe to repeat) ---
+        // No flags needed. Just makes sure every bill has the right fields.
         function runBillMigrations() {
-            // Fix account balances to real SimpleFIN data (2026-02-24)
-            if (!loadData('account_balance_fix_v1')) {
-                const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-                if (checking) { checking.balance = 856.60; }
-                const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
-                if (savings) { savings.balance = 57.11; }
-                if (finAccounts.length > 0) saveData('fin_accounts', finAccounts);
-                saveData('account_balance_fix_v1', true);
-                saveData('bank_last_fetch', '2026-02-24');
+            // One-time: clear old automation run flag so fixed autopay code runs fresh
+            // (v2.1 fixed autopay to not deduct from balance)
+            if (!loadData('automation_fix_v2_1')) {
+                localStorage.removeItem('mc_last_auto_run');
+                saveData('automation_fix_v2_1', true);
             }
 
             if (finBills.length === 0) return;
 
-            // Migration 1: normalize old paid:true/false to status system
-            if (!loadData('bill_status_migration_v2')) {
-                let changed = false;
-                finBills.forEach(b => {
-                    if (!b.status) {
-                        b.status = b.paid ? 'processed' : 'unpaid';
-                        changed = true;
-                    }
-                    if (b.dueDate && !b.recurring) {
-                        b.recurring = 'monthly';
-                        changed = true;
-                    }
-                });
-                if (changed) saveData('fin_bills', finBills);
-                saveData('bill_status_migration_v2', true);
-            }
+            let changed = false;
 
-            // Migration 2: real amounts + due dates from SimpleFIN transaction analysis
-            if (!loadData('bill_amounts_migration_v2')) {
-                const realData = {
-                    'mortgage': { day: 12, amount: 1417.68 },
-                    'bcbs': { day: 20, amount: 427.21 },
-                    'delta dental': { day: 6, amount: 96.60 },
-                    'verizon': { day: 2, amount: 403.19 },
-                    'allo': { day: 1, amount: 174.40 },
-                    'les electric': { day: 21, amount: 446.80 },
-                    'black hills': { day: 11, amount: 202.27 },
-                    'comn cap': { day: 7, amount: 45.00 },
-                    'ent': { day: 2, amount: 50.00 },
-                    'psychotherapy': { day: 2, amount: 50.00 },
-                    'oceans dental': { day: 4, amount: 40.00 },
-                    'johnson chiro': { day: 6, amount: 80.00 },
-                    'goodrx': { day: 30, amount: 9.99 },
-                    'ne furniture': { day: 13, amount: 25.00 },
-                    'tjx': { day: 9, amount: 50.00 },
-                    'arnie': { day: 12, amount: 42.01 },
-                    'spotify': { day: 13, amount: 18.22 },
-                    'netflix': { day: 9, amount: 19.29 },
-                    'disney': { day: 22, amount: 32.19 },
-                    'adobe': { day: 10, amount: 32.16 },
-                    'audible': { day: 1, amount: 16.03 },
-                    'apple': { day: 1, amount: 42.00 },
-                    'google': { day: 2, amount: 2.99 },
-                    'microsoft': { day: 2, amount: 2.13 },
-                    'chatgpt': { day: 30, amount: 20.00 },
-                    'claude': { day: 11, amount: 25.00 },
-                    'appclose': { day: 10, amount: 6.99 },
-                    'rocket car': { day: 28, amount: 10.71 },
-                    'canva': { day: 31, amount: 15.00 }
-                };
-                const now = new Date();
-                const thisMonth = now.getMonth();
-                const thisYear = now.getFullYear();
-                finBills.forEach(b => {
-                    const name = b.name.toLowerCase();
-                    for (const [key, data] of Object.entries(realData)) {
-                        if (name.includes(key)) {
+            // Step 1: Make sure every bill has a status field
+            // (old format used paid:true/false, new format uses status string)
+            finBills.forEach(b => {
+                if (!b.status) {
+                    b.status = b.paid ? 'processed' : 'unpaid';
+                    changed = true;
+                }
+                if (b.dueDate && !b.recurring) {
+                    b.recurring = 'monthly';
+                    changed = true;
+                }
+            });
+
+            // Step 2: Make sure amounts match real SimpleFIN data
+            // (the preloaded amounts were guesses — these are confirmed from bank)
+            const realData = {
+                'mortgage': { day: 12, amount: 1417.68 },
+                'bcbs': { day: 20, amount: 427.21 },
+                'delta dental': { day: 6, amount: 96.60 },
+                'verizon': { day: 2, amount: 403.19 },
+                'allo': { day: 1, amount: 174.40 },
+                'les electric': { day: 21, amount: 446.80 },
+                'black hills': { day: 11, amount: 202.27 },
+                'comn cap': { day: 7, amount: 45.00 },
+                'ent': { day: 2, amount: 50.00 },
+                'psychotherapy': { day: 2, amount: 50.00 },
+                'oceans dental': { day: 4, amount: 40.00 },
+                'johnson chiro': { day: 6, amount: 80.00 },
+                'goodrx': { day: 30, amount: 9.99 },
+                'ne furniture': { day: 13, amount: 25.00 },
+                'tjx': { day: 9, amount: 50.00 },
+                'arnie': { day: 12, amount: 42.01 },
+                'spotify': { day: 13, amount: 18.22 },
+                'netflix': { day: 9, amount: 19.29 },
+                'disney': { day: 22, amount: 32.19 },
+                'adobe': { day: 10, amount: 32.16 },
+                'audible': { day: 1, amount: 16.03 },
+                'apple': { day: 1, amount: 42.00 },
+                'google': { day: 2, amount: 2.99 },
+                'microsoft': { day: 2, amount: 2.13 },
+                'chatgpt': { day: 30, amount: 20.00 },
+                'claude': { day: 11, amount: 25.00 },
+                'appclose': { day: 10, amount: 6.99 },
+                'rocket car': { day: 28, amount: 10.71 },
+                'canva': { day: 31, amount: 15.00 }
+            };
+            const now = new Date();
+            const thisMonth = now.getMonth();
+            const thisYear = now.getFullYear();
+            finBills.forEach(b => {
+                const name = b.name.toLowerCase();
+                for (const [key, data] of Object.entries(realData)) {
+                    if (name.includes(key)) {
+                        // Always correct the amount to real data
+                        if (b.amount !== data.amount) {
                             b.amount = data.amount;
+                            changed = true;
+                        }
+                        // Set due date if missing or wrong day-of-month
+                        if (!b.dueDate || new Date(b.dueDate + 'T00:00:00').getDate() !== data.day) {
                             let dueMonth = thisMonth;
                             let dueYear = thisYear;
                             if (data.day < now.getDate() && (b.status === 'processed' || b.status === 'pending')) {
@@ -5960,13 +5976,31 @@
                             const maxDay = new Date(dueYear, dueMonth + 1, 0).getDate();
                             const day = Math.min(data.day, maxDay);
                             b.dueDate = dueYear + '-' + String(dueMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-                            break;
+                            changed = true;
                         }
+                        break;
                     }
-                });
-                saveData('fin_bills', finBills);
-                saveData('bill_amounts_migration_v2', true);
+                }
+            });
+
+            // Step 3: Set account balances to last known real SimpleFIN values
+            // $856.60 checking, $57.11 savings (from SimpleFIN 2026-02-24)
+            // This runs every load. If the PC is running dashboard-server.py,
+            // fetchBankBalances() will overwrite with the CURRENT real balance afterward.
+            // On the phone (no server), this is the best we have.
+            const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+            if (checking) {
+                checking.balance = 856.60;
             }
+            const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
+            if (savings) {
+                savings.balance = 57.11;
+            }
+            if (finAccounts.length > 0) {
+                saveData('fin_accounts', finAccounts);
+            }
+
+            if (changed) saveData('fin_bills', finBills);
         }
 
         // --- FETCH BANK BALANCES (works with local server OR saved Supabase data) ---
@@ -6198,8 +6232,12 @@
                 // It's a new month! Reset recurring bills
                 let resetCount = 0;
                 finBills.forEach(b => {
-                    if (b.recurring && b.paid) {
+                    if (b.recurring && (b.paid || b.status === 'processed' || b.status === 'pending')) {
                         b.paid = false;
+                        b.status = 'unpaid'; // new status system
+                        delete b.paidAmount; // clear payment info
+                        delete b.paidDate;
+                        delete b.paidBy;
                         // Advance the due date to this month (same day, new month)
                         if (b.dueDate) {
                             const oldDue = new Date(b.dueDate + 'T00:00:00');
@@ -6247,31 +6285,24 @@
 
             // ----- 4. AUTO-MARK AUTOPAY BILLS -----
             // If a bill is set to auto-pay and its due date has passed (or is today),
-            // mark it as paid automatically — because your bank already did it
+            // mark it as PENDING — the bank handles the money, we just track it.
+            // NO balance deductions — SimpleFIN bank balance is the source of truth.
             let autopayCount = 0;
             finBills.forEach(b => {
-                if (b.autoPay && !b.paid && b.dueDate) {
+                if (b.autoPay && b.status === 'unpaid' && b.dueDate) {
                     const due = new Date(b.dueDate + 'T00:00:00');
                     if (due <= today) {
                         b.paid = true;
+                        b.status = 'pending'; // pending until confirmed by bank
+                        b.paidAmount = b.amount;
+                        b.paidDate = due.toISOString().split('T')[0];
+                        b.paidBy = 'autopay';
                         autopayCount++;
-
-                        // Also deduct from Fixed bucket + checking (same as manual "paid")
-                        if (typeof buckets !== 'undefined') {
-                            buckets.fixed.balance = Math.max(0, buckets.fixed.balance - b.amount);
-                        }
-                        const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-                        if (checking) {
-                            checking.balance -= b.amount;
-                            if (checking.balance < 0) console.warn('Autopay made checking negative: $' + checking.balance.toFixed(2));
-                        }
                     }
                 }
             });
             if (autopayCount > 0) {
                 saveData('fin_bills', finBills);
-                saveData('fin_accounts', finAccounts);
-                if (typeof buckets !== 'undefined') saveBuckets();
                 changed = true;
             }
 
@@ -6492,11 +6523,27 @@
     <!-- Register the service worker — makes the app installable + offline-capable -->
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(() => console.log('Service worker registered'))
+            let swReloading = false; // prevent infinite reload loop
+            // Register SW and force it to check for updates every page load
+            navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+                .then(reg => {
+                    console.log('Service worker registered (cache v9)');
+                    // Force check for new version right now
+                    reg.update();
+                })
                 .catch(err => console.log('Service worker registration failed:', err));
+            // If the controlling SW changes (new one took over), reload ONCE
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (swReloading) return;
+                swReloading = true;
+                console.log('New service worker took control — reloading for fresh code');
+                window.location.reload();
+            });
         }
     </script>
+
+    <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.1 — 2026-02-24</div>
 
 </body>
 </html>
