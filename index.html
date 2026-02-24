@@ -5878,97 +5878,85 @@
             renderFinance();
         }
 
-        // --- BILL STATUS MIGRATION ---
-        // One-time: normalize old paid:true/false to new status system + update due dates from real data
-        (function runBillMigration() {
-            if (loadData('bill_status_migration_v1')) return;
+        // --- BILL MIGRATIONS (called from initApp AFTER cloud sync) ---
+        function runBillMigrations() {
             if (finBills.length === 0) return;
 
-            let changed = false;
-            finBills.forEach(b => {
-                // Normalize status from old format
-                if (!b.status) {
-                    b.status = b.paid ? 'processed' : 'unpaid';
-                    changed = true;
-                }
-                // Ensure recurring field exists for bills that should be recurring
-                if (b.dueDate && !b.recurring) {
-                    b.recurring = 'monthly';
-                    changed = true;
-                }
-            });
-
-            if (changed) {
-                saveData('fin_bills', finBills);
-            }
-            saveData('bill_status_migration_v1', true);
-        })();
-
-        // --- BILL AMOUNTS MIGRATION (real data from SimpleFIN transaction analysis) ---
-        (function runBillAmountsMigration() {
-            if (loadData('bill_amounts_migration_v1')) return;
-            if (finBills.length === 0) return;
-
-            // Real amounts + due day based on Jan+Feb 2026 Wells Fargo transaction analysis
-            const realData = {
-                'mortgage': { day: 12, amount: 1417.68 },
-                'bcbs': { day: 20, amount: 427.21 },
-                'delta dental': { day: 6, amount: 96.60 },
-                'verizon': { day: 2, amount: 403.19 },
-                'allo': { day: 1, amount: 174.40 },
-                'les electric': { day: 21, amount: 446.80 },
-                'black hills': { day: 11, amount: 202.27 },
-                'comn cap': { day: 7, amount: 45.00 },
-                'ent': { day: 2, amount: 50.00 },
-                'psychotherapy': { day: 2, amount: 50.00 },
-                'oceans dental': { day: 4, amount: 40.00 },
-                'johnson chiro': { day: 6, amount: 80.00 },
-                'goodrx': { day: 30, amount: 9.99 },
-                'ne furniture': { day: 13, amount: 25.00 },
-                'tjx': { day: 9, amount: 50.00 },
-                'arnie': { day: 12, amount: 42.01 },
-                'spotify': { day: 13, amount: 18.22 },
-                'netflix': { day: 9, amount: 19.29 },
-                'disney': { day: 22, amount: 32.19 },
-                'adobe': { day: 10, amount: 32.16 },
-                'audible': { day: 1, amount: 16.03 },
-                'apple': { day: 1, amount: 42.00 },
-                'google': { day: 2, amount: 2.99 },
-                'microsoft': { day: 2, amount: 2.13 },
-                'chatgpt': { day: 30, amount: 20.00 },
-                'claude': { day: 11, amount: 25.00 },
-                'appclose': { day: 10, amount: 6.99 },
-                'rocket car': { day: 28, amount: 10.71 },
-                'canva': { day: 31, amount: 15.00 }
-            };
-
-            const now = new Date();
-            const thisMonth = now.getMonth();
-            const thisYear = now.getFullYear();
-
-            finBills.forEach(b => {
-                const name = b.name.toLowerCase();
-                for (const [key, data] of Object.entries(realData)) {
-                    if (name.includes(key)) {
-                        b.amount = data.amount;
-                        // Set due date based on real day-of-month
-                        let dueMonth = thisMonth;
-                        let dueYear = thisYear;
-                        // If day already passed and bill is done, bump to next month
-                        if (data.day < now.getDate() && (b.status === 'processed' || b.status === 'pending')) {
-                            dueMonth++;
-                            if (dueMonth > 11) { dueMonth = 0; dueYear++; }
-                        }
-                        const maxDay = new Date(dueYear, dueMonth + 1, 0).getDate();
-                        const day = Math.min(data.day, maxDay);
-                        b.dueDate = dueYear + '-' + String(dueMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-                        break;
+            // Migration 1: normalize old paid:true/false to status system
+            if (!loadData('bill_status_migration_v2')) {
+                let changed = false;
+                finBills.forEach(b => {
+                    if (!b.status) {
+                        b.status = b.paid ? 'processed' : 'unpaid';
+                        changed = true;
                     }
-                }
-            });
-            saveData('fin_bills', finBills);
-            saveData('bill_amounts_migration_v1', true);
-        })();
+                    if (b.dueDate && !b.recurring) {
+                        b.recurring = 'monthly';
+                        changed = true;
+                    }
+                });
+                if (changed) saveData('fin_bills', finBills);
+                saveData('bill_status_migration_v2', true);
+            }
+
+            // Migration 2: real amounts + due dates from SimpleFIN transaction analysis
+            if (!loadData('bill_amounts_migration_v2')) {
+                const realData = {
+                    'mortgage': { day: 12, amount: 1417.68 },
+                    'bcbs': { day: 20, amount: 427.21 },
+                    'delta dental': { day: 6, amount: 96.60 },
+                    'verizon': { day: 2, amount: 403.19 },
+                    'allo': { day: 1, amount: 174.40 },
+                    'les electric': { day: 21, amount: 446.80 },
+                    'black hills': { day: 11, amount: 202.27 },
+                    'comn cap': { day: 7, amount: 45.00 },
+                    'ent': { day: 2, amount: 50.00 },
+                    'psychotherapy': { day: 2, amount: 50.00 },
+                    'oceans dental': { day: 4, amount: 40.00 },
+                    'johnson chiro': { day: 6, amount: 80.00 },
+                    'goodrx': { day: 30, amount: 9.99 },
+                    'ne furniture': { day: 13, amount: 25.00 },
+                    'tjx': { day: 9, amount: 50.00 },
+                    'arnie': { day: 12, amount: 42.01 },
+                    'spotify': { day: 13, amount: 18.22 },
+                    'netflix': { day: 9, amount: 19.29 },
+                    'disney': { day: 22, amount: 32.19 },
+                    'adobe': { day: 10, amount: 32.16 },
+                    'audible': { day: 1, amount: 16.03 },
+                    'apple': { day: 1, amount: 42.00 },
+                    'google': { day: 2, amount: 2.99 },
+                    'microsoft': { day: 2, amount: 2.13 },
+                    'chatgpt': { day: 30, amount: 20.00 },
+                    'claude': { day: 11, amount: 25.00 },
+                    'appclose': { day: 10, amount: 6.99 },
+                    'rocket car': { day: 28, amount: 10.71 },
+                    'canva': { day: 31, amount: 15.00 }
+                };
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+                finBills.forEach(b => {
+                    const name = b.name.toLowerCase();
+                    for (const [key, data] of Object.entries(realData)) {
+                        if (name.includes(key)) {
+                            b.amount = data.amount;
+                            let dueMonth = thisMonth;
+                            let dueYear = thisYear;
+                            if (data.day < now.getDate() && (b.status === 'processed' || b.status === 'pending')) {
+                                dueMonth++;
+                                if (dueMonth > 11) { dueMonth = 0; dueYear++; }
+                            }
+                            const maxDay = new Date(dueYear, dueMonth + 1, 0).getDate();
+                            const day = Math.min(data.day, maxDay);
+                            b.dueDate = dueYear + '-' + String(dueMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                            break;
+                        }
+                    }
+                });
+                saveData('fin_bills', finBills);
+                saveData('bill_amounts_migration_v2', true);
+            }
+        }
 
         // --- FETCH BANK BALANCES (works with local server OR saved Supabase data) ---
         async function fetchBankBalances() {
@@ -6313,8 +6301,17 @@
                 }
             }
 
-            // Step 2: Launch everything — works with or without auth
+            // Step 2: Re-read data from localStorage (cloud sync may have updated it)
+            finAccounts = loadData('fin_accounts') || [];
+            finBills = loadData('fin_bills') || [];
+            finIncome = loadData('fin_income') || [];
+            finTransactions = loadData('fin_transactions') || [];
+            finDebts = loadData('fin_debts') || [];
+            finScenarios = loadData('fin_scenarios') || [];
+
+            // Step 3: Run preload + migrations AFTER data is loaded
             preloadFinanceData();
+            runBillMigrations();
             runAutomations();
 
             getWeather();
@@ -6325,9 +6322,7 @@
             renderKidTracker();
             renderTimestamps();
 
-            renderStove();
-            renderBuckets();
-
+            renderFinance();
             renderRightNow();
         }
 
