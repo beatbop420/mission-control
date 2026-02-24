@@ -588,6 +588,257 @@
             opacity: 0.5;
         }
 
+        /* ===== BILL STATUS SYSTEM (Red/Yellow/Green) ===== */
+        .finance-row.bill-unpaid {
+            border-left: 3px solid #d4849a;
+        }
+        .finance-row.bill-pending {
+            border-left: 3px solid #e8b84b;
+            opacity: 0.7;
+        }
+        .finance-row.bill-processed {
+            border-left: 3px solid #6bbf7b;
+        }
+        .status-unpaid { color: #d4849a; font-weight: 600; }
+        .status-pending { color: #e8b84b; font-weight: 600; }
+        .status-processed { color: #6bbf7b; }
+
+        /* ===== ROLLING TIMELINE ===== */
+        .timeline-wrap { overflow-x: auto; padding-bottom: 8px; }
+        .timeline-grid {
+            display: grid;
+            gap: 1px;
+            background: #1a1216;
+            border: 1px solid #3d2f35;
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: fit-content;
+        }
+        .timeline-header {
+            background: #2a1f24;
+            padding: 4px 2px;
+            text-align: center;
+            font-size: 10px;
+            color: #9a8a92;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .timeline-header.today {
+            background: rgba(212, 132, 154, 0.3);
+            color: #f0e6ea;
+        }
+        .timeline-header.payday {
+            border-bottom: 2px solid #6bbf7b;
+        }
+        .timeline-bill-name {
+            background: #2a1f24;
+            padding: 6px 8px;
+            font-size: 11px;
+            color: #d4ccc8;
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            border-right: 1px solid #3d2f35;
+        }
+        .timeline-cell {
+            padding: 4px 2px;
+            text-align: center;
+            font-size: 9px;
+            min-width: 38px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1e161a;
+        }
+        .timeline-cell.today { background: rgba(212, 132, 154, 0.1); }
+        .timeline-cell.due {
+            background: rgba(212, 132, 154, 0.25);
+            color: #f0e6ea;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        .timeline-cell.due:hover { background: rgba(212, 132, 154, 0.4); }
+        .timeline-cell.paid {
+            background: #1e161a;
+            color: #3d2f35;
+            font-size: 10px;
+        }
+        .timeline-cell.overdue {
+            background: rgba(212, 132, 154, 0.15);
+            color: #d4849a;
+            font-weight: 600;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .timeline-cell.pending-cell {
+            background: rgba(232, 184, 75, 0.15);
+            color: #e8b84b;
+            font-size: 10px;
+        }
+        .timeline-payday-col { border-left: 2px solid #6bbf7b !important; }
+        .timeline-payday-label {
+            color: #6bbf7b;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== ANNUAL BILL LEDGER ===== */
+        .ledger-wrap { overflow-x: auto; }
+        .ledger-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .ledger-table th {
+            background: #2a1f24;
+            color: #b48db5;
+            padding: 8px 6px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 11px;
+            position: sticky;
+            top: 0;
+        }
+        .ledger-table th:first-child {
+            text-align: left;
+            position: sticky;
+            left: 0;
+            z-index: 3;
+        }
+        .ledger-table td {
+            padding: 6px;
+            text-align: center;
+            border-bottom: 1px solid #2a1f24;
+        }
+        .ledger-table td:first-child {
+            text-align: left;
+            color: #d4ccc8;
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            background: #1a1216;
+            z-index: 1;
+        }
+        .ledger-check { color: #6bbf7b; font-size: 14px; }
+        .ledger-pending { color: #e8b84b; font-size: 12px; }
+        .ledger-unpaid { color: #3d2f35; font-size: 14px; }
+        .ledger-upcoming { color: #d4849a; font-size: 12px; }
+        .ledger-current-month { background: rgba(212, 132, 154, 0.08); }
+
+        /* ===== SMART ADVISOR ===== */
+        .advisor-section {
+            margin-bottom: 16px;
+        }
+        .advisor-label {
+            font-size: 10px;
+            color: #9a8a92;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .advisor-balance {
+            font-size: 32px;
+            font-weight: 700;
+            color: #d4ccc8;
+            text-align: center;
+            padding: 12px 0;
+        }
+        .advisor-balance-note {
+            font-size: 11px;
+            color: #6b5660;
+            text-align: center;
+            margin-top: -8px;
+            margin-bottom: 12px;
+        }
+        .advisor-bill-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+        .advisor-bill-row.critical {
+            background: rgba(212, 132, 154, 0.12);
+            border-left: 3px solid #d4849a;
+        }
+        .advisor-bill-row.important {
+            background: rgba(232, 184, 75, 0.08);
+            border-left: 3px solid #e8b84b;
+        }
+        .advisor-bill-row.flexible {
+            background: rgba(157, 138, 146, 0.08);
+            border-left: 3px solid #3d2f35;
+        }
+        .advisor-bill-row.done {
+            opacity: 0.4;
+            border-left: 3px solid #6bbf7b;
+        }
+        .advisor-bill-name { color: #d4ccc8; }
+        .advisor-bill-amt { font-weight: 600; }
+        .advisor-bill-tag {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .advisor-tag-pay { background: rgba(212, 132, 154, 0.2); color: #d4849a; }
+        .advisor-tag-wait { background: rgba(232, 184, 75, 0.15); color: #e8b84b; }
+        .advisor-tag-skip { background: rgba(61, 47, 53, 0.5); color: #6b5660; }
+        .advisor-tag-done { background: rgba(107, 191, 123, 0.15); color: #6bbf7b; }
+        .advisor-summary {
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d4ccc8;
+            margin-top: 12px;
+        }
+        .advisor-summary.good {
+            background: rgba(107, 191, 123, 0.08);
+            border-left: 3px solid #6bbf7b;
+        }
+        .advisor-summary.tight {
+            background: rgba(232, 184, 75, 0.08);
+            border-left: 3px solid #e8b84b;
+        }
+        .advisor-summary.short {
+            background: rgba(212, 132, 154, 0.08);
+            border-left: 3px solid #d4849a;
+        }
+        .advisor-leftover {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .advisor-leftover-box {
+            background: #1a1216;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .advisor-leftover-label {
+            font-size: 10px;
+            color: #9a8a92;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .advisor-leftover-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
         /* Small action buttons (edit, delete, mark paid) */
         .finance-btn-sm {
             background: none;
@@ -1798,12 +2049,15 @@
                     </div>
                 </div>
 
-                <!-- Tab buttons — Stove is FIRST because it's the anxiety reset tool -->
+                <!-- Tab buttons — Advisor is default, the "what do I do" view -->
                 <div class="finance-tabs">
-                    <button class="finance-tab active" onclick="showFinanceTab('stove', this)" style="background:#d4849a; border-color:#d4849a; color:#fff; font-weight:600;">🔥 Stove</button>
-                    <button class="finance-tab" onclick="showFinanceTab('buckets', this)">Buckets</button>
-                    <button class="finance-tab" onclick="showFinanceTab('accounts', this)">Accounts</button>
+                    <button class="finance-tab active" onclick="showFinanceTab('advisor', this)" style="background:#d4849a; border-color:#d4849a; color:#fff; font-weight:600;">Advisor</button>
+                    <button class="finance-tab" onclick="showFinanceTab('stove', this)">Stove</button>
+                    <button class="finance-tab" onclick="showFinanceTab('timeline', this)">Timeline</button>
+                    <button class="finance-tab" onclick="showFinanceTab('ledger', this)">Ledger</button>
                     <button class="finance-tab" onclick="showFinanceTab('bills', this)">Bills</button>
+                    <button class="finance-tab" onclick="showFinanceTab('accounts', this)">Accounts</button>
+                    <button class="finance-tab" onclick="showFinanceTab('buckets', this)">Buckets</button>
                     <button class="finance-tab" onclick="showFinanceTab('debt', this)">Debt</button>
                     <button class="finance-tab" onclick="showFinanceTab('income', this)">Income</button>
                     <button class="finance-tab" onclick="showFinanceTab('log', this)">Log</button>
@@ -1811,9 +2065,26 @@
                     <button class="finance-tab" onclick="showFinanceTab('scenarios', this)">Scenarios</button>
                 </div>
 
+                <!-- ===== SMART ADVISOR — "What do I do this week?" ===== -->
+                <div class="finance-panel active" id="fin-panel-advisor">
+                    <div id="fin-advisor-content">
+                        <p style="color:#6b5660; font-size:13px; padding:10px 0;">Loading advisor...</p>
+                    </div>
+                </div>
+
+                <!-- ===== ROLLING TIMELINE — 4-week moving view ===== -->
+                <div class="finance-panel" id="fin-panel-timeline">
+                    <div class="timeline-wrap" id="fin-timeline-grid"></div>
+                </div>
+
+                <!-- ===== ANNUAL LEDGER — Month-by-month overview ===== -->
+                <div class="finance-panel" id="fin-panel-ledger">
+                    <div class="ledger-wrap" id="fin-ledger-table"></div>
+                </div>
+
                 <!-- ===== CHECK THE STOVE — The anxiety reset page ===== -->
                 <!-- Single screen. No scrolling. Just the numbers you need to stop worrying. -->
-                <div class="finance-panel active" id="fin-panel-stove">
+                <div class="finance-panel" id="fin-panel-stove">
                     <div style="text-align:center; padding:8px 0 16px;">
                         <p style="font-size:13px; color:#9a8a92; font-style:italic;">Everything is fine. Here's the proof.</p>
                     </div>
@@ -3166,12 +3437,15 @@
         function renderFinance() {
             renderAccounts();
             renderBills();
+            renderTimeline();
+            renderLedger();
+            renderAdvisor();
             renderIncome();
             renderTransactions();
             renderScenarios();
             renderDebts();
             renderBudgetOverview();
-            syncBucketsToAccounts();  // make buckets match real account balances
+            syncBucketsToAccounts();
             updateFinanceSummary();
             renderStove();
             renderBuckets();
@@ -3206,49 +3480,454 @@
                 list.innerHTML = '<p style="color:#6b5660; font-size:13px; padding:10px 0;">No bills yet. Add rent, electric, phone, etc.</p>';
                 return;
             }
-            // Sort: unpaid first, then by due date
+            // Normalize statuses from old paid:true/false format
+            finBills.forEach(b => {
+                if (!b.status) b.status = b.paid ? 'processed' : 'unpaid';
+            });
+            // Sort: unpaid first, then pending, then processed. Within each group, by due date
+            const statusOrder = { unpaid: 0, pending: 1, processed: 2 };
             const sorted = [...finBills].sort((a, b) => {
-                if (a.paid !== b.paid) return a.paid ? 1 : -1;
-                return new Date(a.dueDate) - new Date(b.dueDate);
+                const sa = statusOrder[a.status] || 0;
+                const sb = statusOrder[b.status] || 0;
+                if (sa !== sb) return sa - sb;
+                return new Date(a.dueDate || '2099-01-01') - new Date(b.dueDate || '2099-01-01');
             });
             list.innerHTML = sorted.map(b => {
-                const due = new Date(b.dueDate + 'T00:00:00');
+                const due = b.dueDate ? new Date(b.dueDate + 'T00:00:00') : null;
                 const now = new Date();
-                const daysUntil = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-                let dueClass = '';
+                const daysUntil = due ? Math.ceil((due - now) / (1000 * 60 * 60 * 24)) : 999;
                 let dueLabel = '';
-                if (b.paid) {
-                    dueLabel = '✓ Paid';
-                } else if (daysUntil < 0) {
-                    dueClass = 'due-overdue';
-                    dueLabel = 'OVERDUE ' + Math.abs(daysUntil) + 'd';
-                } else if (daysUntil <= 3) {
-                    dueClass = 'due-soon';
-                    dueLabel = 'Due in ' + daysUntil + 'd';
+                let rowClass = 'finance-row';
+                let buttons = '';
+
+                if (b.status === 'processed') {
+                    const via = b.paidBy ? ' \u00b7 ' + b.paidBy : '';
+                    dueLabel = '<span class="status-processed">Processed' + via + '</span>';
+                    rowClass += ' bill-processed';
+                    buttons = `<button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>`;
+                } else if (b.status === 'pending') {
+                    dueLabel = '<span class="status-pending">Pending $' + (b.paidAmount || b.amount).toFixed(2) + '</span>';
+                    rowClass += ' bill-pending';
+                    buttons = `<button class="finance-btn-sm" onclick="markBillProcessed('${b.id}')" style="border-color:#6bbf7b;color:#6bbf7b;">confirm</button>
+                               <button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>`;
                 } else {
-                    dueLabel = 'Due ' + due.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+                    rowClass += ' bill-unpaid';
+                    if (daysUntil < 0) {
+                        dueLabel = '<span class="status-unpaid">OVERDUE ' + Math.abs(daysUntil) + 'd</span>';
+                    } else if (daysUntil <= 3) {
+                        dueLabel = '<span class="status-unpaid">Due in ' + daysUntil + 'd</span>';
+                    } else if (due) {
+                        dueLabel = 'Due ' + due.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+                    }
+                    buttons = `<button class="finance-btn-sm" onclick="markBillPaid('${b.id}')">paid</button>
+                               <button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>
+                               <button class="finance-btn-sm" onclick="deleteFinanceItem('bill','${b.id}')">x</button>`;
                 }
+
                 // Extra info badges
                 const extras = [];
                 if (b.recurring) extras.push(b.recurring);
                 if (b.category) extras.push(b.category);
                 if (b.autoPay) extras.push('Auto-pay');
-                if (b.paidBy) extras.push('Paid by ' + b.paidBy);
 
                 return `
-                <div class="finance-row ${b.paid ? 'paid' : ''}">
+                <div class="${rowClass}">
                     <div class="fr-left">
                         <span class="fr-name">${b.name}</span>
-                        <span class="fr-detail ${dueClass}">${dueLabel}${extras.length ? ' · ' + extras.join(' · ') : ''}</span>
+                        <span class="fr-detail">${dueLabel}${extras.length ? ' \u00b7 ' + extras.join(' \u00b7 ') : ''}</span>
                     </div>
                     <div class="fr-right">
-                        <span class="fr-amount ${b.paid ? '' : 'pending'}">$${b.amount.toFixed(2)}</span>
-                        ${b.paid ? '' : `<button class="finance-btn-sm" onclick="markBillPaid('${b.id}')">paid</button>`}
-                        <button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>
-                        <button class="finance-btn-sm" onclick="deleteFinanceItem('bill','${b.id}')">x</button>
+                        <span class="fr-amount ${b.status === 'unpaid' ? 'pending' : ''}">${fmt$(b.amount)}</span>
+                        ${buttons}
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        // --- ROLLING TIMELINE (7 days back + 21 days forward) ---
+        function renderTimeline() {
+            const container = document.getElementById('fin-timeline-grid');
+            if (!container) return;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const daysBack = 7;
+            const daysForward = 21;
+            const days = daysBack + daysForward;
+            // Build date array
+            const dates = [];
+            let todayIndex = 0;
+            for (let i = -daysBack; i < daysForward; i++) {
+                const d = new Date(today);
+                d.setDate(d.getDate() + i);
+                dates.push(d);
+                if (i === 0) todayIndex = dates.length - 1;
+            }
+            // Get next payday
+            const bSettings = loadData('bucket_settings') || {};
+            const nextPayday = bSettings.nextPayday ? new Date(bSettings.nextPayday + 'T00:00:00') : null;
+            // Normalize statuses
+            finBills.forEach(b => { if (!b.status) b.status = b.paid ? 'processed' : 'unpaid'; });
+            // Only recurring bills with a due date
+            const recurringBills = finBills.filter(b => b.recurring && b.dueDate);
+            const billRows = recurringBills.map(b => {
+                const dueDay = new Date(b.dueDate + 'T00:00:00').getDate();
+                return { bill: b, dueDay: dueDay };
+            });
+            billRows.sort((a, b) => a.dueDay - b.dueDay);
+
+            let html = '<div class="timeline-grid" style="grid-template-columns: 120px repeat(' + days + ', minmax(38px, 1fr));">';
+            // Header row
+            html += '<div class="timeline-header" style="position:sticky;left:0;z-index:3;background:#2a1f24;"></div>';
+            dates.forEach((d, i) => {
+                const isToday = i === todayIndex;
+                const isPast = i < todayIndex;
+                const isPayday = nextPayday && d.getTime() === nextPayday.getTime();
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0,2);
+                const dayNum = d.getDate();
+                const monthLabel = dayNum === 1 || i === 0 ? d.toLocaleDateString('en-US', { month: 'short' }) + ' ' : '';
+                let classes = 'timeline-header';
+                if (isToday) classes += ' today';
+                if (isPayday) classes += ' payday';
+                html += '<div class="' + classes + '"' + (isPast ? ' style="opacity:0.5;"' : '') + '>' +
+                    (isPayday ? '<div class="timeline-payday-label">PAY</div>' : '') +
+                    '<div>' + dayName + '</div><div>' + monthLabel + dayNum + '</div></div>';
+            });
+            // Bill rows
+            billRows.forEach(function(row) {
+                const bill = row.bill;
+                const dueDay = row.dueDay;
+                html += '<div class="timeline-bill-name">' + bill.name + '</div>';
+                dates.forEach((d, i) => {
+                    const isToday = i === todayIndex;
+                    const isPayday = nextPayday && d.getTime() === nextPayday.getTime();
+                    const cellDay = d.getDate();
+                    const billDueDate = new Date(bill.dueDate + 'T00:00:00');
+                    const billDueMonth = billDueDate.getMonth();
+                    let isDue = cellDay === dueDay;
+                    let isOverdue = false;
+                    if (isDue && bill.status === 'unpaid' && d < today) {
+                        isOverdue = true;
+                        isDue = false;
+                    }
+                    if (isToday && bill.status === 'unpaid' && billDueDate < today) {
+                        isOverdue = true;
+                    }
+                    let cellClass = 'timeline-cell';
+                    if (isToday) cellClass += ' today';
+                    if (isPayday) cellClass += ' timeline-payday-col';
+                    let content = '';
+                    if (isOverdue && isToday) {
+                        cellClass += ' overdue';
+                        content = '$' + bill.amount.toFixed(0);
+                    } else if (isDue && (bill.status === 'processed' || (bill.status === 'pending' && d.getMonth() === billDueMonth))) {
+                        cellClass += ' paid';
+                        content = '$' + (bill.paidAmount || bill.amount).toFixed(0);
+                    } else if (isDue && bill.status === 'pending') {
+                        cellClass += ' pending-cell';
+                        content = '$' + (bill.paidAmount || bill.amount).toFixed(0);
+                    } else if (isDue) {
+                        cellClass += ' due';
+                        content = '$' + bill.amount.toFixed(0);
+                    }
+                    html += '<div class="' + cellClass + '"' + (isDue && bill.status === 'unpaid' ? ' onclick="markBillPaid(\'' + bill.id + '\')"' : '') + '>' + content + '</div>';
+                });
+            });
+            html += '</div>';
+            // Legend
+            html += '<div style="display:flex; gap:12px; padding:8px 4px; font-size:10px; color:#9a8a92; flex-wrap:wrap;">' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:rgba(212,132,154,0.25);border-radius:2px;margin-right:3px;"></span>Due</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:rgba(212,132,154,0.15);border-radius:2px;margin-right:3px;border:1px solid #d4849a;"></span>Overdue</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:rgba(232,184,75,0.15);border-radius:2px;margin-right:3px;"></span>Pending</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:#1e161a;border-radius:2px;margin-right:3px;border:1px solid #3d2f35;"></span>Paid</span>' +
+                '<span><span style="display:inline-block;width:10px;height:2px;background:#6bbf7b;margin-right:3px;vertical-align:middle;"></span>Payday</span>' +
+                '<span><span style="display:inline-block;width:10px;height:10px;background:rgba(212,132,154,0.1);border-radius:2px;margin-right:3px;"></span>Today</span></div>';
+            container.innerHTML = html;
+        }
+
+        // Helper: turn 1 into "1st", 2 into "2nd", etc.
+        function ordinal(n) {
+            const s = ['th','st','nd','rd'];
+            const v = n % 100;
+            return n + (s[(v-20)%10] || s[v] || s[0]);
+        }
+
+        // --- ANNUAL LEDGER (Jan-Dec overview) ---
+        function renderLedger() {
+            const container = document.getElementById('fin-ledger-table');
+            if (!container) return;
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const months = [];
+            for (let m = 0; m < 12; m++) {
+                months.push({ month: m, year: currentYear, label: new Date(currentYear, m).toLocaleDateString('en-US', { month: 'short' }) });
+            }
+            finBills.forEach(b => { if (!b.status) b.status = b.paid ? 'processed' : 'unpaid'; });
+            const recurringBills = finBills.filter(b => b.recurring);
+            recurringBills.sort((a, b) => {
+                const da = a.dueDate ? new Date(a.dueDate + 'T00:00:00').getDate() : 99;
+                const db = b.dueDate ? new Date(b.dueDate + 'T00:00:00').getDate() : 99;
+                return da - db;
+            });
+            // Load/auto-populate payment history
+            let paymentHistory = loadData('bill_payment_history') || {};
+            const monthKey = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+            recurringBills.forEach(b => {
+                const histKey = b.id + '_' + monthKey;
+                if (!paymentHistory[histKey]) {
+                    if (b.status === 'processed') {
+                        paymentHistory[histKey] = { status: 'paid', amount: b.paidAmount || b.amount, date: b.paidDate || '' };
+                    } else if (b.status === 'pending') {
+                        paymentHistory[histKey] = { status: 'pending', amount: b.paidAmount || b.amount, date: b.paidDate || '' };
+                    }
+                }
+            });
+            saveData('bill_payment_history', paymentHistory);
+
+            let html = '<table class="ledger-table"><thead><tr><th>Bill</th>';
+            months.forEach(m => {
+                html += '<th' + (m.month === currentMonth ? ' style="color:#d4849a;"' : '') + '>' + m.label + '</th>';
+            });
+            html += '<th>$/mo</th></tr></thead><tbody>';
+            recurringBills.forEach(bill => {
+                html += '<tr><td>' + bill.name + '</td>';
+                months.forEach(m => {
+                    const mKey = m.year + '-' + String(m.month + 1).padStart(2, '0');
+                    const histKey = bill.id + '_' + mKey;
+                    const record = paymentHistory[histKey];
+                    const isCurrent = m.month === currentMonth;
+                    const isPast = m.month < currentMonth;
+                    const isFuture = m.month > currentMonth;
+                    let cellContent = '';
+                    let cellClass = isCurrent ? ' class="ledger-current-month"' : '';
+                    if (record && record.status === 'paid') {
+                        cellContent = '<span class="ledger-check">&#10003;</span>';
+                    } else if (record && record.status === 'pending') {
+                        cellContent = '<span class="ledger-pending">&#9679;</span>';
+                    } else if (isCurrent) {
+                        const dueDay = bill.dueDate ? new Date(bill.dueDate + 'T00:00:00').getDate() : '?';
+                        cellContent = '<span class="ledger-upcoming">' + ordinal(dueDay) + '</span>';
+                    } else if (isFuture) {
+                        const dueDay = bill.dueDate ? new Date(bill.dueDate + 'T00:00:00').getDate() : '?';
+                        cellContent = '<span style="color:#3d2f35;">' + ordinal(dueDay) + '</span>';
+                    } else if (isPast) {
+                        cellContent = '<span class="ledger-unpaid">-</span>';
+                    }
+                    html += '<td' + cellClass + '>' + cellContent + '</td>';
+                });
+                html += '<td style="color:#9a8a92;">$' + bill.amount.toFixed(0) + '</td></tr>';
+            });
+            // Total row
+            const totalMonthly = recurringBills.reduce((sum, b) => sum + b.amount, 0);
+            html += '<tr style="border-top:2px solid #3d2f35;"><td style="font-weight:600;color:#b48db5;">TOTAL</td>';
+            months.forEach(m => {
+                html += '<td' + (m.month === currentMonth ? ' class="ledger-current-month"' : '') + '></td>';
+            });
+            html += '<td style="color:#d4849a;font-weight:600;">$' + totalMonthly.toFixed(0) + '</td></tr>';
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // --- SMART ADVISOR (the "what do I do this week" brain) ---
+        function renderAdvisor() {
+            const container = document.getElementById('fin-advisor-content');
+            if (!container) return;
+
+            // Get checking balance
+            const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+            const balance = checking ? checking.balance : 0;
+            const lastFetch = loadData('bank_last_fetch');
+
+            // Normalize bill statuses
+            finBills.forEach(b => { if (!b.status) b.status = b.paid ? 'processed' : 'unpaid'; });
+
+            // Get next payday
+            const bSettings = loadData('bucket_settings') || {};
+            const nextPayday = bSettings.nextPayday ? new Date(bSettings.nextPayday + 'T00:00:00') : null;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            // Find unpaid bills due in next 7 days
+            const weekOut = new Date(today);
+            weekOut.setDate(weekOut.getDate() + 7);
+
+            // Categorize bills by priority
+            function getBillPriority(bill) {
+                const name = (bill.name || '').toLowerCase();
+                const cat = (bill.category || '').toLowerCase();
+                // Critical: housing, utilities, insurance — lose service or shelter if missed
+                if (cat === 'housing' || name.includes('mortgage') || name.includes('rent')) return 'critical';
+                if (cat === 'utilities' || name.includes('electric') || name.includes('les ') || name.includes('gas') || name.includes('black hills') || name.includes('water')) return 'critical';
+                if (cat === 'insurance' || name.includes('bcbs') || name.includes('insurance') || name.includes('delta dental')) return 'critical';
+                // Important: phone, internet, medical, debt — consequences but not immediate shutoff
+                if (name.includes('verizon') || name.includes('phone') || name.includes('allo') || name.includes('internet')) return 'important';
+                if (cat === 'medical' || cat === 'dental' || name.includes('ent') || name.includes('oceans')) return 'important';
+                if (cat === 'debt' || name.includes('loan') || name.includes('pcr') || name.includes('nfcu')) return 'important';
+                if (name.includes('child support') || name.includes('storage')) return 'important';
+                // Everything else: subscriptions, entertainment — can skip or delay
+                return 'flexible';
+            }
+
+            // Collect all unpaid bills due in next 7 days
+            const upcomingBills = finBills.filter(b => {
+                if (b.status !== 'unpaid') return false;
+                if (!b.dueDate) return false;
+                const due = new Date(b.dueDate + 'T00:00:00');
+                // For recurring bills, project to this month
+                if (b.recurring) {
+                    const dueDay = due.getDate();
+                    const thisMonthDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
+                    // If already past this month, check next month
+                    if (thisMonthDue < today) {
+                        thisMonthDue.setMonth(thisMonthDue.getMonth() + 1);
+                    }
+                    return thisMonthDue <= weekOut;
+                }
+                return due <= weekOut;
+            });
+
+            // Also collect overdue bills (past due and still unpaid)
+            const overdueBills = finBills.filter(b => {
+                if (b.status !== 'unpaid') return false;
+                if (!b.dueDate) return false;
+                const due = new Date(b.dueDate + 'T00:00:00');
+                if (b.recurring) {
+                    const dueDay = due.getDate();
+                    const thisMonthDue = new Date(today.getFullYear(), today.getMonth(), dueDay);
+                    return thisMonthDue < today;
+                }
+                return due < today;
+            });
+
+            // Combine and deduplicate
+            const allActionable = [...overdueBills, ...upcomingBills].filter((b, i, arr) => arr.findIndex(x => x.id === b.id) === i);
+
+            // Sort by priority then by amount (biggest first within each tier)
+            const priorityOrder = { critical: 0, important: 1, flexible: 2 };
+            allActionable.sort((a, b) => {
+                const pa = priorityOrder[getBillPriority(a)] || 2;
+                const pb = priorityOrder[getBillPriority(b)] || 2;
+                if (pa !== pb) return pa - pb;
+                return b.amount - a.amount;
+            });
+
+            // Calculate totals by tier
+            let criticalTotal = 0, importantTotal = 0, flexibleTotal = 0;
+            allActionable.forEach(b => {
+                const p = getBillPriority(b);
+                if (p === 'critical') criticalTotal += b.amount;
+                else if (p === 'important') importantTotal += b.amount;
+                else flexibleTotal += b.amount;
+            });
+            const totalDue = criticalTotal + importantTotal + flexibleTotal;
+
+            // Also show pending bills (already marked paid, waiting for bank)
+            const pendingBills = finBills.filter(b => b.status === 'pending');
+
+            // Build the HTML
+            let html = '';
+
+            // Balance header
+            html += '<div class="advisor-section">';
+            html += '<div class="advisor-balance">' + fmt$(balance) + '</div>';
+            html += '<div class="advisor-balance-note">Checking' + (lastFetch ? ' \u00b7 last synced ' + lastFetch : '') + '</div>';
+            html += '</div>';
+
+            // This week's bills
+            if (allActionable.length === 0 && pendingBills.length === 0) {
+                html += '<div class="advisor-section"><div class="advisor-summary good">No bills due this week. You\'re clear.</div></div>';
+            } else {
+                html += '<div class="advisor-section">';
+                html += '<div class="advisor-label">This Week</div>';
+
+                // Decide what to pay vs wait
+                let runningTotal = 0;
+                allActionable.forEach(b => {
+                    const priority = getBillPriority(b);
+                    const canAfford = (runningTotal + b.amount) <= balance;
+                    let tag = '';
+                    let tagClass = '';
+                    let rowClass = '';
+
+                    if (priority === 'critical') {
+                        tag = 'PAY NOW';
+                        tagClass = 'advisor-tag-pay';
+                        rowClass = 'critical';
+                        runningTotal += b.amount;
+                    } else if (priority === 'important' && canAfford) {
+                        tag = 'PAY NOW';
+                        tagClass = 'advisor-tag-pay';
+                        rowClass = 'important';
+                        runningTotal += b.amount;
+                    } else if (priority === 'important' && !canAfford) {
+                        tag = nextPayday ? 'WAIT TIL ' + nextPayday.toLocaleDateString('en-US', {month:'short', day:'numeric'}) : 'WAIT';
+                        tagClass = 'advisor-tag-wait';
+                        rowClass = 'important';
+                    } else {
+                        tag = canAfford ? 'CAN WAIT' : 'SKIP';
+                        tagClass = canAfford ? 'advisor-tag-wait' : 'advisor-tag-skip';
+                        rowClass = 'flexible';
+                    }
+
+                    const dueDate = b.dueDate ? new Date(b.dueDate + 'T00:00:00') : null;
+                    const dueDay = dueDate ? dueDate.getDate() : '?';
+                    const isOverdue = dueDate && dueDate < today;
+
+                    html += '<div class="advisor-bill-row ' + rowClass + '">';
+                    html += '<div><span class="advisor-bill-name">' + b.name + '</span>';
+                    html += '<span style="font-size:11px; color:#6b5660; margin-left:6px;">' + (isOverdue ? 'OVERDUE' : ordinal(dueDay)) + '</span></div>';
+                    html += '<div style="display:flex;align-items:center;gap:8px;">';
+                    html += '<span class="advisor-bill-amt" style="color:#d4ccc8;">' + fmt$(b.amount) + '</span>';
+                    html += '<span class="advisor-bill-tag ' + tagClass + '">' + tag + '</span>';
+                    html += '</div></div>';
+                });
+
+                // Show pending bills
+                pendingBills.forEach(b => {
+                    html += '<div class="advisor-bill-row done">';
+                    html += '<div><span class="advisor-bill-name">' + b.name + '</span></div>';
+                    html += '<div style="display:flex;align-items:center;gap:8px;">';
+                    html += '<span class="advisor-bill-amt" style="color:#6b5660;">' + fmt$(b.paidAmount || b.amount) + '</span>';
+                    html += '<span class="advisor-bill-tag advisor-tag-done">PENDING</span>';
+                    html += '</div></div>';
+                });
+
+                html += '</div>';
+
+                // The math summary
+                const afterBills = balance - runningTotal;
+                const daysUntilPayday = nextPayday ? Math.ceil((nextPayday - today) / (1000*60*60*24)) : null;
+                let summaryClass = 'good';
+                let summaryText = '';
+
+                if (afterBills < 0) {
+                    summaryClass = 'short';
+                    summaryText = 'You\'re short ' + fmt$(Math.abs(afterBills)) + ' to cover everything. ';
+                    summaryText += 'Focus on the critical bills first.';
+                    if (daysUntilPayday) summaryText += ' Next payday is in ' + daysUntilPayday + ' days.';
+                } else if (afterBills < 100) {
+                    summaryClass = 'tight';
+                    summaryText = 'After must-pay bills you\'d have ' + fmt$(afterBills) + ' left. Tight but doable.';
+                    if (daysUntilPayday) summaryText += ' Payday in ' + daysUntilPayday + ' days.';
+                } else {
+                    summaryText = 'After bills you\'d have ' + fmt$(afterBills) + ' left.';
+                    if (daysUntilPayday) summaryText += ' Next payday in ' + daysUntilPayday + ' days.';
+                }
+
+                html += '<div class="advisor-summary ' + summaryClass + '">' + summaryText + '</div>';
+
+                // What's left for variable spending
+                const dailyBudget = daysUntilPayday && daysUntilPayday > 0 ? Math.max(0, afterBills) / daysUntilPayday : 0;
+                html += '<div class="advisor-leftover">';
+                html += '<div class="advisor-leftover-box"><div class="advisor-leftover-label">After Bills</div>';
+                html += '<div class="advisor-leftover-value" style="color:' + (afterBills < 0 ? '#d4849a' : afterBills < 100 ? '#e8b84b' : '#6bbf7b') + ';">' + fmt$(Math.max(0, afterBills)) + '</div></div>';
+                html += '<div class="advisor-leftover-box"><div class="advisor-leftover-label">Daily Budget</div>';
+                html += '<div class="advisor-leftover-value" style="color:' + (dailyBudget < 10 ? '#d4849a' : dailyBudget < 25 ? '#e8b84b' : '#6bbf7b') + ';">' + fmt$(dailyBudget) + '/day</div></div>';
+                html += '</div>';
+                html += '<p style="font-size:10px; color:#6b5660; text-align:center; margin-top:8px;">Dog food, gas, groceries come from "After Bills"</p>';
+            }
+
+            container.innerHTML = html;
         }
 
         // --- INCOME ---
@@ -3725,28 +4404,32 @@
             }
         }
 
-        // --- MARK BILL AS PAID ---
+        // --- MARK BILL AS PAID (pending flow — bank is source of truth) ---
         function markBillPaid(id) {
             const bill = finBills.find(b => b.id === id);
-            if (bill) {
-                bill.paid = true;
-                saveData('fin_bills', finBills);
+            if (!bill) return;
+            // Ask how much was actually paid
+            const input = prompt('How much did you pay for ' + bill.name + '?', bill.amount.toFixed(2));
+            if (input === null) return;
+            const paidAmount = parseFloat(input);
+            if (isNaN(paidAmount) || paidAmount <= 0) { alert('Enter a valid dollar amount'); return; }
+            // Mark as PENDING — waiting for bank to confirm
+            bill.status = 'pending';
+            bill.paid = true;
+            bill.paidAmount = paidAmount;
+            bill.paidDate = new Date().toISOString().split('T')[0];
+            // NO manual deduction — bank balance from SimpleFIN is the source of truth
+            saveData('fin_bills', finBills);
+            renderFinance();
+        }
 
-                // Deduct from Fixed bucket (that's where bill money lives)
-                if (typeof buckets !== 'undefined') {
-                    buckets.fixed.balance = Math.max(0, buckets.fixed.balance - bill.amount);
-                    saveBuckets();
-                }
-
-                // Deduct from checking account (the money actually left your bank)
-                const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-                if (checking) {
-                    checking.balance -= bill.amount;
-                    saveData('fin_accounts', finAccounts);
-                }
-
-                renderFinance();
-            }
+        // --- MANUALLY CONFIRM A PENDING BILL ---
+        function markBillProcessed(id) {
+            const bill = finBills.find(b => b.id === id);
+            if (!bill) return;
+            bill.status = 'processed';
+            saveData('fin_bills', finBills);
+            renderFinance();
         }
 
         // --- DELETE ITEM ---
@@ -5195,6 +5878,90 @@
             renderFinance();
         }
 
+        // --- BILL STATUS MIGRATION ---
+        // One-time: normalize old paid:true/false to new status system + update due dates from real data
+        (function runBillMigration() {
+            if (loadData('bill_status_migration_v1')) return;
+            if (finBills.length === 0) return;
+
+            let changed = false;
+            finBills.forEach(b => {
+                // Normalize status from old format
+                if (!b.status) {
+                    b.status = b.paid ? 'processed' : 'unpaid';
+                    changed = true;
+                }
+                // Ensure recurring field exists for bills that should be recurring
+                if (b.dueDate && !b.recurring) {
+                    b.recurring = 'monthly';
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                saveData('fin_bills', finBills);
+            }
+            saveData('bill_status_migration_v1', true);
+        })();
+
+        // --- FETCH BANK BALANCES (works with local server OR saved Supabase data) ---
+        async function fetchBankBalances() {
+            try {
+                // Try local server first (only works on PC with dashboard-server.py running)
+                const response = await fetch('/balances');
+                if (!response.ok) return;
+                const data = await response.json();
+                if (data.error || !data.accounts || data.accounts.length === 0) return;
+
+                let updated = false;
+                // Update account balances from bank
+                data.accounts.forEach(bankAccount => {
+                    const name = bankAccount.name.toLowerCase();
+                    const realBalance = bankAccount.available || bankAccount.balance;
+                    if (name.includes('checking')) {
+                        const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+                        if (checking && checking.balance !== realBalance) {
+                            checking.balance = realBalance;
+                            updated = true;
+                        }
+                    }
+                    if (name.includes('saving')) {
+                        const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
+                        if (savings && savings.balance !== realBalance) {
+                            savings.balance = realBalance;
+                            updated = true;
+                        }
+                    }
+                });
+                // Auto-match pending bills to bank transactions
+                if (data.transactions && data.transactions.length > 0) {
+                    const pendingBills = finBills.filter(b => b.status === 'pending');
+                    pendingBills.forEach(bill => {
+                        const matchAmt = bill.paidAmount || bill.amount;
+                        const match = data.transactions.find(txn => {
+                            if (Math.abs(txn.amount - matchAmt) > 0.02) return false;
+                            if (bill.paidDate && txn.date) return txn.date >= bill.paidDate;
+                            return true;
+                        });
+                        if (match) {
+                            bill.status = 'processed';
+                            updated = true;
+                        }
+                    });
+                }
+                if (updated) {
+                    saveData('fin_accounts', finAccounts);
+                    saveData('fin_bills', finBills);
+                    saveData('bank_last_fetch', data.fetched_at_human || new Date().toISOString());
+                    renderFinance();
+                }
+            } catch (e) {
+                // Silently fail — on phone/web, just use whatever Supabase has
+            }
+        }
+        // Try once on page load (no polling — bank only updates daily)
+        fetchBankBalances();
+
         // --- Add paycheck/bucket form handlers to the existing saveFinanceForm ---
         // We need to hook into the existing save function
         const originalSaveFinanceForm = saveFinanceForm;
@@ -5460,25 +6227,24 @@
         // 4. Then launches everything like normal
 
         async function initApp() {
-            // Step 1: Check if logged in
-            try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) {
-                    // Not logged in — send to login page
+            // Step 1: Check if logged in (skip if testing locally)
+            const skipAuth = new URLSearchParams(window.location.search).get('skip');
+            if (!skipAuth) {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (!user) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+                    const cloudHadData = await syncFromCloud();
+                    if (!cloudHadData) {
+                        await migrateLocalToCloud();
+                    }
+                } catch (e) {
+                    console.log('Auth check failed:', e.message);
                     window.location.href = 'login.html';
                     return;
                 }
-                // Logged in — pull latest data from cloud
-                const cloudHadData = await syncFromCloud();
-                // If cloud was empty, push local data up (one-time migration)
-                if (!cloudHadData) {
-                    await migrateLocalToCloud();
-                }
-            } catch (e) {
-                // Supabase not reachable — send to login just in case
-                console.log('Auth check failed:', e.message);
-                window.location.href = 'login.html';
-                return;
             }
 
             // Step 2: Launch everything — works with or without auth
