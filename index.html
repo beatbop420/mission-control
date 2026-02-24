@@ -5792,8 +5792,8 @@
             // --- Set up accounts with real balances ---
             if (finAccounts.length === 0) {
                 finAccounts = [
-                    { id: genId(), name: 'Wells Fargo Checking', type: 'Checking', balance: 2483.32 },
-                    { id: genId(), name: 'Wells Fargo Savings', type: 'Savings', balance: 52.11 }
+                    { id: genId(), name: 'Wells Fargo Checking', type: 'Checking', balance: 856.60 },
+                    { id: genId(), name: 'Wells Fargo Savings', type: 'Savings', balance: 57.11 }
                 ];
                 saveData('fin_accounts', finAccounts);
             }
@@ -5880,6 +5880,17 @@
 
         // --- BILL MIGRATIONS (called from initApp AFTER cloud sync) ---
         function runBillMigrations() {
+            // Fix account balances to real SimpleFIN data (2026-02-24)
+            if (!loadData('account_balance_fix_v1')) {
+                const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+                if (checking) { checking.balance = 856.60; }
+                const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
+                if (savings) { savings.balance = 57.11; }
+                if (finAccounts.length > 0) saveData('fin_accounts', finAccounts);
+                saveData('account_balance_fix_v1', true);
+                saveData('bank_last_fetch', '2026-02-24');
+            }
+
             if (finBills.length === 0) return;
 
             // Migration 1: normalize old paid:true/false to status system
