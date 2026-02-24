@@ -2957,16 +2957,26 @@
         async function syncToCloud(key, value) {
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) return; // not logged in, skip cloud sync
+                if (!user) {
+                    console.warn('SYNC SKIP: No user logged in');
+                    return;
+                }
+                console.log('SYNC UP:', key, '(user:', user.id.slice(0,8) + '...)');
 
-                await supabaseClient.from('user_data').upsert({
+                const { data, error } = await supabaseClient.from('user_data').upsert({
                     user_id: user.id,
                     key: key,
                     value: value,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id,key' });
+
+                if (error) {
+                    console.error('SYNC FAIL:', key, error);
+                } else {
+                    console.log('SYNC OK:', key);
+                }
             } catch (err) {
-                console.error('Cloud sync error for key "' + key + '":', err);
+                console.error('SYNC ERROR:', key, err);
             }
         }
 
@@ -2981,16 +2991,27 @@
         async function syncFromCloud() {
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) return false; // not logged in
+                if (!user) {
+                    console.warn('SYNC DOWN: No user logged in');
+                    return false;
+                }
+                console.log('SYNC DOWN: Pulling data for user', user.id.slice(0,8) + '...');
 
                 const { data, error } = await supabaseClient
                     .from('user_data')
                     .select('key, value')
                     .eq('user_id', user.id);
 
-                if (error) throw error;
-                if (!data || data.length === 0) return false; // no cloud data yet
+                if (error) {
+                    console.error('SYNC DOWN FAIL:', error);
+                    throw error;
+                }
+                if (!data || data.length === 0) {
+                    console.log('SYNC DOWN: Cloud is empty — no data yet');
+                    return false;
+                }
 
+                console.log('SYNC DOWN: Got', data.length, 'keys from cloud');
                 // Stuff everything from the cloud into localStorage
                 data.forEach(row => {
                     localStorage.setItem('mc_' + row.key, JSON.stringify(row.value));
@@ -2998,7 +3019,7 @@
 
                 return true; // cloud data was loaded
             } catch (err) {
-                console.error('Cloud sync download error:', err);
+                console.error('SYNC DOWN ERROR:', err);
                 return false;
             }
         }
