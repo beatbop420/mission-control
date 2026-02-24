@@ -126,10 +126,10 @@
 
         <!-- STEP 2: Enter the 6-digit code -->
         <div id="step-code" style="display:none;">
-            <p class="subtitle">Check your email for a 6-digit code.<br>Type it here.</p>
+            <p class="subtitle">Check your email for a code.<br>Type it here.</p>
             <div class="input-group">
                 <label for="code">Code</label>
-                <input type="text" id="code" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+                <input type="text" id="code" placeholder="Enter code" maxlength="10" inputmode="numeric" autocomplete="one-time-code">
             </div>
             <button class="btn" id="verify-btn" onclick="verifyCode()">Let Me In</button>
             <button class="btn btn-secondary" onclick="showEmailStep()">Use a different email</button>
@@ -206,9 +206,9 @@
             const msg = document.getElementById('msg');
             const btn = document.getElementById('verify-btn');
 
-            if (!code || code.length !== 6) {
+            if (!code || code.length < 6) {
                 msg.className = 'msg error';
-                msg.textContent = 'Enter the 6-digit code from your email.';
+                msg.textContent = 'Enter the code from your email.';
                 return;
             }
 
