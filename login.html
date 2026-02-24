@@ -16,7 +16,7 @@
             font-family: 'Lexend', sans-serif;
             background: #1a1216;
             color: #d4ccc8;
-            min-height: 100dvh; /* dvh = dynamic viewport height, works better on phones */
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -38,7 +38,7 @@
         h1 { color: #f0e6ea; font-size: 22px; font-weight: 500; margin-bottom: 8px; }
         .subtitle { color: #b48db5; font-size: 14px; margin-bottom: 30px; }
 
-        /* Email input */
+        /* Inputs */
         .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; font-size: 13px; color: #b48db5; margin-bottom: 6px; }
         .input-group input {
@@ -54,6 +54,14 @@
         }
         .input-group input:focus { border-color: #d4849a; }
         .input-group input::placeholder { color: #6b5a62; }
+
+        /* Code input — big centered numbers */
+        #code {
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 8px;
+            font-weight: 600;
+        }
 
         /* Big button */
         .btn {
@@ -71,6 +79,10 @@
         }
         .btn:hover { opacity: 0.9; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            background: #3d2f35;
+            color: #d4ccc8;
+        }
 
         /* Status messages */
         .msg {
@@ -98,29 +110,29 @@
         <!-- Crown -->
         <div class="crown">&#128081;</div>
         <h1>Mission Control</h1>
-        <p class="subtitle">Enter your email to get a magic login link.<br>No password needed — ever.</p>
 
         <!-- Status message area -->
         <div id="msg" class="msg"></div>
 
-        <!-- Email form -->
-        <div id="login-form">
+        <!-- STEP 1: Enter email -->
+        <div id="step-email">
+            <p class="subtitle">Enter your email to get a login code.<br>No password needed — ever.</p>
             <div class="input-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" placeholder="your@email.com" autocomplete="email">
             </div>
-            <button class="btn" id="send-btn" onclick="sendMagicLink()">Send Magic Link</button>
+            <button class="btn" id="send-btn" onclick="sendCode()">Send Code</button>
         </div>
 
-        <!-- Check email message (hidden until link is sent) -->
-        <div id="check-email" style="display:none;">
-            <p style="font-size: 15px; color: #f0e6ea; margin-bottom: 15px;">
-                Check your email and click the link!
-            </p>
-            <p style="font-size: 13px; color: #b48db5;">
-                It might take a minute. Check spam if you don't see it.
-            </p>
-            <button class="btn" style="margin-top: 20px; background: #3d2f35; color: #d4ccc8;" onclick="showForm()">Try again</button>
+        <!-- STEP 2: Enter the 6-digit code -->
+        <div id="step-code" style="display:none;">
+            <p class="subtitle">Check your email for a 6-digit code.<br>Type it here.</p>
+            <div class="input-group">
+                <label for="code">Code</label>
+                <input type="text" id="code" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+            </div>
+            <button class="btn" id="verify-btn" onclick="verifyCode()">Let Me In</button>
+            <button class="btn btn-secondary" onclick="showEmailStep()">Use a different email</button>
         </div>
 
         <!-- Skip login — use without cloud sync -->
@@ -128,76 +140,125 @@
     </div>
 
     <script>
+        // Store the email between steps
+        let userEmail = '';
+
         // Check if already logged in — if so, go straight to the app
         (async function checkAuth() {
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (user) {
-                    // Already logged in — skip to dashboard
                     window.location.href = 'index.html';
                 }
             } catch (e) {
-                // Not logged in, show the form — that's fine
+                // Not logged in, show the form
             }
         })();
 
-        // Send a magic link to the email address
-        async function sendMagicLink() {
+        // STEP 1: Send a 6-digit code to their email
+        async function sendCode() {
             const email = document.getElementById('email').value.trim();
             const msg = document.getElementById('msg');
             const btn = document.getElementById('send-btn');
 
-            // Basic check
             if (!email || !email.includes('@')) {
                 msg.className = 'msg error';
                 msg.textContent = 'Enter a valid email address.';
                 return;
             }
 
-            // Disable button while sending
             btn.disabled = true;
             btn.textContent = 'Sending...';
             msg.className = 'msg info';
-            msg.textContent = 'Sending magic link...';
+            msg.textContent = 'Sending code...';
 
             try {
-                // This tells Supabase to email a login link
-                // The redirectTo is where the link takes you after clicking
+                // signInWithOtp WITHOUT a redirectTo sends a 6-digit code instead of a link
                 const { error } = await supabaseClient.auth.signInWithOtp({
-                    email: email,
-                    options: {
-                        emailRedirectTo: window.location.origin + window.location.pathname.replace('login.html', 'index.html')
-                    }
+                    email: email
                 });
 
                 if (error) throw error;
 
-                // Success — show the "check your email" message
-                document.getElementById('login-form').style.display = 'none';
-                document.getElementById('check-email').style.display = 'block';
+                // Save email for step 2
+                userEmail = email;
+
+                // Show code entry step
+                document.getElementById('step-email').style.display = 'none';
+                document.getElementById('step-code').style.display = 'block';
                 msg.className = 'msg success';
-                msg.textContent = 'Magic link sent to ' + email;
+                msg.textContent = 'Code sent to ' + email;
+
+                // Auto-focus the code input
+                document.getElementById('code').focus();
 
             } catch (err) {
                 msg.className = 'msg error';
                 msg.textContent = err.message || 'Something went wrong. Try again.';
                 btn.disabled = false;
-                btn.textContent = 'Send Magic Link';
+                btn.textContent = 'Send Code';
             }
         }
 
-        // Show the email form again (if they want to retry)
-        function showForm() {
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('check-email').style.display = 'none';
-            document.getElementById('msg').textContent = '';
-            document.getElementById('send-btn').disabled = false;
-            document.getElementById('send-btn').textContent = 'Send Magic Link';
+        // STEP 2: Verify the 6-digit code
+        async function verifyCode() {
+            const code = document.getElementById('code').value.trim();
+            const msg = document.getElementById('msg');
+            const btn = document.getElementById('verify-btn');
+
+            if (!code || code.length !== 6) {
+                msg.className = 'msg error';
+                msg.textContent = 'Enter the 6-digit code from your email.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            msg.className = 'msg info';
+            msg.textContent = 'Verifying...';
+
+            try {
+                // Verify the OTP code with Supabase
+                const { data, error } = await supabaseClient.auth.verifyOtp({
+                    email: userEmail,
+                    token: code,
+                    type: 'email'
+                });
+
+                if (error) throw error;
+
+                // Success! Logged in. Go to dashboard.
+                msg.className = 'msg success';
+                msg.textContent = 'You\'re in!';
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+
+            } catch (err) {
+                msg.className = 'msg error';
+                msg.textContent = err.message || 'Wrong code. Try again.';
+                btn.disabled = false;
+                btn.textContent = 'Let Me In';
+                document.getElementById('code').value = '';
+                document.getElementById('code').focus();
+            }
         }
 
-        // Let them press Enter to submit
+        // Go back to email step
+        function showEmailStep() {
+            document.getElementById('step-email').style.display = 'block';
+            document.getElementById('step-code').style.display = 'none';
+            document.getElementById('msg').textContent = '';
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('send-btn').textContent = 'Send Code';
+        }
+
+        // Enter key submits on both steps
         document.getElementById('email').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') sendMagicLink();
+            if (e.key === 'Enter') sendCode();
+        });
+        document.getElementById('code').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') verifyCode();
         });
     </script>
 </body>
