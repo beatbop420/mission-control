@@ -2028,8 +2028,8 @@
                 <!-- Summary bar with more detail -->
                 <div class="finance-summary" style="margin-top: 14px;">
                     <div class="finance-summary-box">
-                        <div class="fs-label">Total Balance</div>
-                        <div class="fs-value" id="fin-total-balance-detail">$0.00</div>
+                        <div class="fs-label">Checking</div>
+                        <div class="fs-value" id="fin-checking-balance">$0.00</div>
                     </div>
                     <div class="finance-summary-box">
                         <div class="fs-label">Unpaid Bills</div>
@@ -3761,7 +3761,7 @@
                 if (cat === 'insurance' || name.includes('bcbs') || name.includes('insurance') || name.includes('delta dental')) return 'critical';
                 // Important: phone, internet, medical, debt — consequences but not immediate shutoff
                 if (name.includes('verizon') || name.includes('phone') || name.includes('allo') || name.includes('internet')) return 'important';
-                if (cat === 'medical' || cat === 'dental' || name.includes('ent') || name.includes('oceans')) return 'important';
+                if (cat === 'medical' || cat === 'dental' || name.includes('psychotherapy')) return 'important';
                 if (cat === 'debt' || name.includes('loan') || name.includes('pcr') || name.includes('nfcu')) return 'important';
                 if (name.includes('child support') || name.includes('storage')) return 'important';
                 // Everything else: subscriptions, entertainment — can skip or delay
@@ -4382,9 +4382,10 @@
         // Updates the Money tab summary boxes and overdue alerts.
         // Uses safe element lookups so missing IDs don't crash everything.
         function updateFinanceSummary() {
-            const totalBal = finAccounts.reduce((sum, a) => sum + a.balance, 0);
-            const unpaidBills = finBills.filter(b => !b.paid).reduce((sum, b) => sum + b.amount, 0);
-            const spendable = totalBal - unpaidBills;
+            const checkingAcct = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+            const checkingBal = checkingAcct ? checkingAcct.balance : 0;
+            const unpaidBills = finBills.filter(b => b.status === 'unpaid').reduce((sum, b) => sum + b.amount, 0);
+            const spendable = checkingBal - unpaidBills;
 
             // Helper: safe element setter (won't crash if element doesn't exist)
             function setEl(id, text, className) {
@@ -4395,7 +4396,7 @@
             }
 
             // --- MONEY TAB DETAIL BOXES ---
-            setEl('fin-total-balance-detail', fmt$(totalBal), 'fs-value' + (totalBal < 0 ? ' negative' : ''));
+            setEl('fin-checking-balance', fmt$(checkingBal), 'fs-value' + (checkingBal < 0 ? ' negative' : ''));
             setEl('fin-unpaid-bills', fmt$(unpaidBills));
             setEl('fin-spendable-detail', fmt$(spendable), 'fs-value' + (spendable < 0 ? ' negative' : ''));
 
@@ -5836,10 +5837,7 @@
                     { id: genId(), name: 'Comn Cap (Ulta)', amount: 45.00, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
 
                     // HEALTH/MEDICAL
-                    { id: genId(), name: 'ENT', amount: 50.00, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'Psychotherapy Associates', amount: 50.00, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Oceans Dental', amount: 40.00, dueDate: '2026-02-28', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'Johnson Chiropractic', amount: 80.00, dueDate: '2026-02-20', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: false, paidBy: '' },
                     { id: genId(), name: 'GoodRx Gold', amount: 9.99, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
 
                     // DEBT
@@ -5853,9 +5851,6 @@
                     { id: genId(), name: 'Disney+', amount: 32.19, dueDate: '2026-02-22', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'Adobe', amount: 32.16, dueDate: '2026-03-10', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'Audible', amount: 16.03, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Apple (combined)', amount: 42.00, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Google', amount: 2.99, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Microsoft', amount: 2.13, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'ChatGPT', amount: 20.00, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'Claude', amount: 25.00, dueDate: '2026-03-11', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'AppClose', amount: 6.99, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
@@ -5931,10 +5926,7 @@
                 'les electric': { day: 21, amount: 446.80 },
                 'black hills': { day: 11, amount: 202.27 },
                 'comn cap': { day: 7, amount: 45.00 },
-                'ent': { day: 2, amount: 50.00 },
                 'psychotherapy': { day: 2, amount: 50.00 },
-                'oceans dental': { day: 4, amount: 40.00 },
-                'johnson chiro': { day: 6, amount: 80.00 },
                 'goodrx': { day: 30, amount: 9.99 },
                 'ne furniture': { day: 13, amount: 25.00 },
                 'tjx': { day: 9, amount: 50.00 },
@@ -5944,9 +5936,6 @@
                 'disney': { day: 22, amount: 32.19 },
                 'adobe': { day: 10, amount: 32.16 },
                 'audible': { day: 1, amount: 16.03 },
-                'apple': { day: 1, amount: 42.00 },
-                'google': { day: 2, amount: 2.99 },
-                'microsoft': { day: 2, amount: 2.13 },
                 'chatgpt': { day: 30, amount: 20.00 },
                 'claude': { day: 11, amount: 25.00 },
                 'appclose': { day: 10, amount: 6.99 },
@@ -5959,29 +5948,102 @@
             finBills.forEach(b => {
                 const name = b.name.toLowerCase();
                 for (const [key, data] of Object.entries(realData)) {
-                    if (name.includes(key)) {
+                    // For short keys like 'ent', require exact match (not just includes)
+                    const matches = data.exact ? (name === key) : name.includes(key);
+                    if (matches) {
                         // Always correct the amount to real data
                         if (b.amount !== data.amount) {
                             b.amount = data.amount;
                             changed = true;
                         }
-                        // Set due date if missing or wrong day-of-month
-                        if (!b.dueDate || new Date(b.dueDate + 'T00:00:00').getDate() !== data.day) {
-                            let dueMonth = thisMonth;
-                            let dueYear = thisYear;
-                            if (data.day < now.getDate() && (b.status === 'processed' || b.status === 'pending')) {
-                                dueMonth++;
-                                if (dueMonth > 11) { dueMonth = 0; dueYear++; }
-                            }
-                            const maxDay = new Date(dueYear, dueMonth + 1, 0).getDate();
+                        // Set due date — always this month for the bill's natural day
+                        {
+                            const maxDay = new Date(thisYear, thisMonth + 1, 0).getDate();
                             const day = Math.min(data.day, maxDay);
-                            b.dueDate = dueYear + '-' + String(dueMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-                            changed = true;
+                            const correctDate = thisYear + '-' + String(thisMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                            if (b.dueDate !== correctDate) {
+                                b.dueDate = correctDate;
+                                changed = true;
+                            }
                         }
                         break;
                     }
                 }
             });
+
+            // Step 2b: February 2026 status correction (from SimpleFIN transaction analysis)
+            // These are the REAL statuses based on what actually posted to WF checking
+            if (!loadData('feb_status_fix_v1')) {
+                const febStatuses = {
+                    // PROCESSED — confirmed posted to WF checking (with actual dates)
+                    'mortgage':    { s: 'processed', d: '2026-02-10' },
+                    'bcbs':        { s: 'processed', d: '2026-02-20' },
+                    'les electric':{ s: 'processed', d: '2026-02-21' },
+                    'delta dental':{ s: 'processed', d: '2026-02-06' },
+                    'disney':      { s: 'processed', d: '2026-02-22' },
+                    'spotify':     { s: 'processed', d: '2026-02-13' },
+                    'ne furniture':{ s: 'processed', d: '2026-02-13' },
+                    'adobe':       { s: 'processed', d: '2026-02-10' },
+                    'appclose':    { s: 'processed', d: '2026-02-09' },
+                    'netflix':     { s: 'processed', d: '2026-02-09' },
+                    'tjx':         { s: 'processed', d: '2026-02-09' },
+                    'comn cap':    { s: 'processed', d: '2026-02-06' },
+                    'canva':       { s: 'processed', d: '2026-02-02' },
+                    'audible':     { s: 'processed', d: '2026-02-01' },
+                    'goodrx':      { s: 'processed', d: '2026-02-02' },
+                    'chatgpt':     { s: 'processed', d: '2026-02-02' },
+                    'claude':      { s: 'processed', d: '2026-02-10' },
+                    'rocket car':  { s: 'processed', d: '2026-02-02' },
+                    // PROCESSED — paid on Southwest credit card
+                    'verizon':     { s: 'processed', d: '2026-02-24' },
+                    // PENDING — authorized but not posted as of 2/24
+                    'black hills': { s: 'pending', d: '2026-02-24' },
+                    'allo':        { s: 'pending', d: '2026-02-24' },
+                    // UNPAID
+                    'arnie':       { s: 'unpaid' },
+                    'psychotherapy':{ s: 'unpaid' }
+                };
+                finBills.forEach(b => {
+                    const name = b.name.toLowerCase();
+                    for (const [key, val] of Object.entries(febStatuses)) {
+                        if (name.includes(key)) {
+                            b.status = val.s;
+                            b.paid = (val.s !== 'unpaid');
+                            if (val.d) b.paidDate = val.d;
+                            b.paidAmount = b.amount;
+                            if (val.s === 'processed') {
+                                b.paidBy = (key === 'verizon') ? 'Southwest card' : 'WF checking';
+                            } else if (val.s === 'pending') {
+                                b.paidBy = 'WF checking';
+                            }
+                            changed = true;
+                            break;
+                        }
+                    }
+                });
+                // Also set automation flags so monthly reset doesn't undo this
+                const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+                saveData('last_bill_reset_month', curMonth);
+                saveData('last_auto_run', now.toISOString().split('T')[0]);
+                saveData('feb_status_fix_v1', true);
+            }
+
+            // Step 2c: Remove bills we're setting aside for now
+            // (Oceans Dental, Apple combined, ENT, Google, Microsoft, Johnson Chiro)
+            if (!loadData('bill_cleanup_v1')) {
+                const removeBills = ['oceans', 'apple (combined)', 'ent', 'google', 'microsoft', 'johnson'];
+                const before = finBills.length;
+                finBills = finBills.filter(b => {
+                    const name = b.name.toLowerCase();
+                    // Exact match for 'ent' (3 chars), includes for others
+                    return !removeBills.some(rm => rm === 'ent' ? name === 'ent' : name.includes(rm));
+                });
+                if (finBills.length !== before) {
+                    saveData('fin_bills', finBills);
+                    changed = true;
+                }
+                saveData('bill_cleanup_v1', true);
+            }
 
             // Step 3: Set account balances to last known real SimpleFIN values
             // $856.60 checking, $57.11 savings (from SimpleFIN 2026-02-24)
@@ -6198,9 +6260,10 @@
                 if (className !== undefined) el.className = className;
             }
 
-            // Total Balance = real total across ALL bank accounts
-            const realTotal = finAccounts.reduce((sum, a) => sum + a.balance, 0);
-            safeSet('fin-total-balance-detail', fmt$(realTotal), 'fs-value' + (realTotal < 0 ? ' negative' : ''));
+            // Checking balance only (not combined with savings)
+            const rnChecking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+            const rnCheckBal = rnChecking ? rnChecking.balance : 0;
+            safeSet('fin-checking-balance', fmt$(rnCheckBal), 'fs-value' + (rnCheckBal < 0 ? ' negative' : ''));
 
             // Spendable = Life + Dopamine buckets (what you can actually spend)
             const spendable = buckets.life.balance + buckets.dopamine.balance;
@@ -6543,7 +6606,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.1 — 2026-02-24</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.2 — 2026-02-24</div>
 
 </body>
 </html>
