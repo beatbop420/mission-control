@@ -603,6 +603,57 @@
         .status-pending { color: #e8b84b; font-weight: 600; }
         .status-processed { color: #6bbf7b; }
 
+        /* ===== COLLAPSIBLE BILL GROUPS ===== */
+        /* The clickable header bar that expands/collapses a group */
+        .bill-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 8px 0 4px 0;
+            background: #231a1e;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .bill-group-header:hover {
+            background: #2e2228;
+        }
+        /* Left side — arrow + label */
+        .bill-group-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        /* The little arrow that rotates */
+        .bill-group-arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 11px;
+        }
+        /* When group is open, arrow points down */
+        .bill-group-header.open .bill-group-arrow {
+            transform: rotate(90deg);
+        }
+        /* Count badge on the right */
+        .bill-group-count {
+            font-size: 12px;
+            color: #9a8a92;
+        }
+        /* The container that collapses */
+        .bill-group-items {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease;
+        }
+        /* When open, allow full height */
+        .bill-group-items.open {
+            max-height: 2000px;
+        }
+
         /* ===== ROLLING TIMELINE ===== */
         .timeline-wrap { overflow-x: auto; padding-bottom: 8px; }
         .timeline-grid {
@@ -3484,15 +3535,22 @@
             finBills.forEach(b => {
                 if (!b.status) b.status = b.paid ? 'processed' : 'unpaid';
             });
-            // Sort: unpaid first, then pending, then processed. Within each group, by due date
-            const statusOrder = { unpaid: 0, pending: 1, processed: 2 };
-            const sorted = [...finBills].sort((a, b) => {
-                const sa = statusOrder[a.status] || 0;
-                const sb = statusOrder[b.status] || 0;
-                if (sa !== sb) return sa - sb;
-                return new Date(a.dueDate || '2099-01-01') - new Date(b.dueDate || '2099-01-01');
+
+            // Split bills into groups: action needed (unpaid + pending) vs paid (processed)
+            const actionBills = finBills.filter(b => b.status === 'unpaid' || b.status === 'pending');
+            const paidBills = finBills.filter(b => b.status === 'processed');
+
+            // Sort each group by due date
+            const byDueDate = (a, b) => new Date(a.dueDate || '2099-01-01') - new Date(b.dueDate || '2099-01-01');
+            // Within action group, unpaid first then pending
+            actionBills.sort((a, b) => {
+                if (a.status !== b.status) return a.status === 'unpaid' ? -1 : 1;
+                return byDueDate(a, b);
             });
-            list.innerHTML = sorted.map(b => {
+            paidBills.sort(byDueDate);
+
+            // Helper: render one bill row
+            function renderBillRow(b) {
                 const due = b.dueDate ? new Date(b.dueDate + 'T00:00:00') : null;
                 const now = new Date();
                 const daysUntil = due ? Math.ceil((due - now) / (1000 * 60 * 60 * 24)) : 999;
@@ -3504,12 +3562,12 @@
                     const via = b.paidBy ? ' \u00b7 ' + b.paidBy : '';
                     dueLabel = '<span class="status-processed">Processed' + via + '</span>';
                     rowClass += ' bill-processed';
-                    buttons = `<button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>`;
+                    buttons = '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>';
                 } else if (b.status === 'pending') {
                     dueLabel = '<span class="status-pending">Pending $' + (b.paidAmount || b.amount).toFixed(2) + '</span>';
                     rowClass += ' bill-pending';
-                    buttons = `<button class="finance-btn-sm" onclick="markBillProcessed('${b.id}')" style="border-color:#6bbf7b;color:#6bbf7b;">confirm</button>
-                               <button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>`;
+                    buttons = '<button class="finance-btn-sm" onclick="markBillProcessed(\'' + b.id + '\')" style="border-color:#6bbf7b;color:#6bbf7b;">confirm</button>' +
+                              '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>';
                 } else {
                     rowClass += ' bill-unpaid';
                     if (daysUntil < 0) {
@@ -3519,9 +3577,9 @@
                     } else if (due) {
                         dueLabel = 'Due ' + due.toLocaleDateString('en-US', {month:'short', day:'numeric'});
                     }
-                    buttons = `<button class="finance-btn-sm" onclick="markBillPaid('${b.id}')">paid</button>
-                               <button class="finance-btn-sm" onclick="editFinanceItem('bill','${b.id}')">edit</button>
-                               <button class="finance-btn-sm" onclick="deleteFinanceItem('bill','${b.id}')">x</button>`;
+                    buttons = '<button class="finance-btn-sm" onclick="markBillPaid(\'' + b.id + '\')">paid</button>' +
+                              '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>' +
+                              '<button class="finance-btn-sm" onclick="deleteFinanceItem(\'bill\',\'' + b.id + '\')">x</button>';
                 }
 
                 // Extra info badges
@@ -3530,18 +3588,59 @@
                 if (b.category) extras.push(b.category);
                 if (b.autoPay) extras.push('Auto-pay');
 
-                return `
-                <div class="${rowClass}">
-                    <div class="fr-left">
-                        <span class="fr-name">${b.name}</span>
-                        <span class="fr-detail">${dueLabel}${extras.length ? ' \u00b7 ' + extras.join(' \u00b7 ') : ''}</span>
-                    </div>
-                    <div class="fr-right">
-                        <span class="fr-amount ${b.status === 'unpaid' ? 'pending' : ''}">${fmt$(b.amount)}</span>
-                        ${buttons}
-                    </div>
-                </div>`;
-            }).join('');
+                return '<div class="' + rowClass + '">' +
+                    '<div class="fr-left">' +
+                        '<span class="fr-name">' + b.name + '</span>' +
+                        '<span class="fr-detail">' + dueLabel + (extras.length ? ' \u00b7 ' + extras.join(' \u00b7 ') : '') + '</span>' +
+                    '</div>' +
+                    '<div class="fr-right">' +
+                        '<span class="fr-amount ' + (b.status === 'unpaid' ? 'pending' : '') + '">' + fmt$(b.amount) + '</span>' +
+                        buttons +
+                    '</div>' +
+                '</div>';
+            }
+
+            // Build the HTML with groups
+            let html = '';
+
+            // --- ACTION NEEDED group (unpaid + pending) — always visible ---
+            if (actionBills.length > 0) {
+                const unpaidTotal = actionBills.filter(b => b.status === 'unpaid').reduce((s, b) => s + b.amount, 0);
+                const pendingCount = actionBills.filter(b => b.status === 'pending').length;
+                let subtitle = '';
+                if (unpaidTotal > 0) subtitle += fmt$(unpaidTotal) + ' due';
+                if (pendingCount > 0) subtitle += (subtitle ? ' + ' : '') + pendingCount + ' pending';
+                html += '<div style="font-size:12px; color:#d4849a; font-weight:600; padding:4px 0 2px 2px; text-transform:uppercase; letter-spacing:0.5px;">' +
+                    'Needs Attention' + (subtitle ? ' — ' + subtitle : '') + '</div>';
+                html += actionBills.map(renderBillRow).join('');
+            } else {
+                // All bills are paid! Little celebration
+                html += '<div style="text-align:center; padding:12px 0; color:#6bbf7b; font-size:13px;">All bills paid this month</div>';
+            }
+
+            // --- PAID group (processed) — collapsible, closed by default ---
+            if (paidBills.length > 0) {
+                const paidTotal = paidBills.reduce((s, b) => s + b.amount, 0);
+                html += '<div class="bill-group-header" onclick="toggleBillGroup(this)" id="paid-bills-toggle">' +
+                    '<div class="bill-group-label">' +
+                        '<span class="bill-group-arrow">&#9654;</span>' +  // right-pointing triangle
+                        '<span style="color:#6bbf7b;">&#10003; Paid</span>' +
+                    '</div>' +
+                    '<div class="bill-group-count">' + paidBills.length + ' bills \u00b7 ' + fmt$(paidTotal) + '</div>' +
+                '</div>';
+                html += '<div class="bill-group-items" id="paid-bills-group">';
+                html += paidBills.map(renderBillRow).join('');
+                html += '</div>';
+            }
+
+            list.innerHTML = html;
+        }
+
+        // Toggle a collapsible bill group open/closed
+        function toggleBillGroup(headerEl) {
+            headerEl.classList.toggle('open');
+            const items = headerEl.nextElementSibling;
+            if (items) items.classList.toggle('open');
         }
 
         // --- ROLLING TIMELINE (7 days back + 21 days forward) ---
@@ -3761,7 +3860,7 @@
                 if (cat === 'insurance' || name.includes('bcbs') || name.includes('insurance') || name.includes('delta dental')) return 'critical';
                 // Important: phone, internet, medical, debt — consequences but not immediate shutoff
                 if (name.includes('verizon') || name.includes('phone') || name.includes('allo') || name.includes('internet')) return 'important';
-                if (cat === 'medical' || cat === 'dental' || name.includes('psychotherapy')) return 'important';
+                if (cat === 'medical' || cat === 'dental') return 'important';
                 if (cat === 'debt' || name.includes('loan') || name.includes('pcr') || name.includes('nfcu')) return 'important';
                 if (name.includes('child support') || name.includes('storage')) return 'important';
                 // Everything else: subscriptions, entertainment — can skip or delay
@@ -5837,13 +5936,11 @@
                     { id: genId(), name: 'Comn Cap (Ulta)', amount: 45.00, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
 
                     // HEALTH/MEDICAL
-                    { id: genId(), name: 'Psychotherapy Associates', amount: 50.00, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'GoodRx Gold', amount: 9.99, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
 
                     // DEBT
                     { id: genId(), name: 'NE Furniture Mart', amount: 25.00, dueDate: '2026-03-13', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
                     { id: genId(), name: 'TJX Rewards', amount: 50.00, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
-                    { id: genId(), name: "Arnie's Pet Food", amount: 42.01, dueDate: '2026-03-12', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
 
                     // SUBSCRIPTIONS
                     { id: genId(), name: 'Spotify', amount: 18.22, dueDate: '2026-03-13', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
@@ -5926,11 +6023,9 @@
                 'les electric': { day: 21, amount: 446.80 },
                 'black hills': { day: 11, amount: 202.27 },
                 'comn cap': { day: 7, amount: 45.00 },
-                'psychotherapy': { day: 2, amount: 50.00 },
                 'goodrx': { day: 30, amount: 9.99 },
                 'ne furniture': { day: 13, amount: 25.00 },
                 'tjx': { day: 9, amount: 50.00 },
-                'arnie': { day: 12, amount: 42.01 },
                 'spotify': { day: 13, amount: 18.22 },
                 'netflix': { day: 9, amount: 19.29 },
                 'disney': { day: 22, amount: 32.19 },
@@ -5998,10 +6093,7 @@
                     'verizon':     { s: 'processed', d: '2026-02-24' },
                     // PENDING — authorized but not posted as of 2/24
                     'black hills': { s: 'pending', d: '2026-02-24' },
-                    'allo':        { s: 'pending', d: '2026-02-24' },
-                    // UNPAID
-                    'arnie':       { s: 'unpaid' },
-                    'psychotherapy':{ s: 'unpaid' }
+                    'allo':        { s: 'pending', d: '2026-02-24' }
                 };
                 finBills.forEach(b => {
                     const name = b.name.toLowerCase();
@@ -6043,6 +6135,21 @@
                     changed = true;
                 }
                 saveData('bill_cleanup_v1', true);
+            }
+
+            // Step 2d: Remove Arnie's (variable expense) and Psychotherapy (on hold)
+            if (!loadData('bill_cleanup_v2')) {
+                const removeBills2 = ['arnie', 'psychotherapy'];
+                const before2 = finBills.length;
+                finBills = finBills.filter(b => {
+                    const name = b.name.toLowerCase();
+                    return !removeBills2.some(rm => name.includes(rm));
+                });
+                if (finBills.length !== before2) {
+                    saveData('fin_bills', finBills);
+                    changed = true;
+                }
+                saveData('bill_cleanup_v2', true);
             }
 
             // Step 3: Set account balances to last known real SimpleFIN values
@@ -6590,7 +6697,7 @@
             // Register SW and force it to check for updates every page load
             navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('Service worker registered (cache v9)');
+                    console.log('Service worker registered (cache v11)');
                     // Force check for new version right now
                     reg.update();
                 })
@@ -6606,7 +6713,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.2 — 2026-02-24</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.3 — 2026-02-24</div>
 
 </body>
 </html>
