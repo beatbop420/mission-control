@@ -3508,9 +3508,10 @@
                 if (Math.abs(diff) > 0.01) {
                     buckets.life.balance += diff;
                     if (buckets.life.balance < 0) {
-                        buckets.dopamine.balance += buckets.life.balance;
+                        // Don't cascade the deficit into Dopamine — that silently wipes it.
+                        // Just zero Life and flag it so the user knows to log untracked spending.
+                        setStatus('info', 'Bank balance doesn\'t match bucket total — Life bucket adjusted. Log any untracked spending in the Log tab to reconcile.');
                         buckets.life.balance = 0;
-                        if (buckets.dopamine.balance < 0) buckets.dopamine.balance = 0;
                     }
                 }
             }
@@ -4401,7 +4402,7 @@
                     <span class="wf-amount ${afterEssentials >= 0 ? 'positive' : 'negative'}"><strong>${fmt$(afterEssentials)}</strong></span>
                 </div>
 
-                ${afterEssentials > 0 ? `
+                ${afterEssentials > 0.01 ? `
                     <p style="font-size:13px; color:#9a8a92; margin:14px 0 8px;">Suggested split for the ${fmt$(afterEssentials)} leftover:</p>
                     <div class="split-bar-wrap">
                         ${splitDebt > 0 ? `<div style="width:${(splitDebt/afterEssentials*100).toFixed(0)}%; background:#d4849a;">Debt</div>` : ''}
@@ -4413,12 +4414,20 @@
                         ${splitSavings > 0 ? `<span style="color:#b48db5;">🛡 Emergency fund: ${fmt$(splitSavings)}</span>` : ''}
                         ${splitSpending > 0 ? `<span style="color:#e8b84b;">🎯 Spending money: ${fmt$(splitSpending)}</span>` : ''}
                     </div>
-                ` : afterEssentials < 0 ? `
+                ` : afterEssentials < -0.01 ? `
                     <div class="alert-row level-red" style="margin-top:10px;">
                         <span class="alert-icon">🚨</span>
                         <div class="alert-body">
                             <span class="alert-text">Shortfall: you're ${fmt$(Math.abs(afterEssentials))} short each month</span>
                             <span class="alert-ref">Your income doesn't cover bills + debt minimums. You need more income or to cut expenses by ${fmt$(Math.abs(afterEssentials))}.</span>
+                        </div>
+                    </div>
+                ` : monthlyIncome > 0 ? `
+                    <div class="alert-row level-yellow" style="margin-top:10px;">
+                        <span class="alert-icon">⚠</span>
+                        <div class="alert-body">
+                            <span class="alert-text">Nothing left after bills and debt minimums</span>
+                            <span class="alert-ref">Income exactly covers your obligations — no room for savings or extra spending right now. Any extra shifts go straight to breathing room.</span>
                         </div>
                     </div>
                 ` : ''}
@@ -5571,7 +5580,12 @@
             nextNextPay.setDate(nextNextPay.getDate() + bucketSettings.payFrequency);
 
             let needed = 0;
-            finBills.filter(b => !b.paid).forEach(b => {
+            finBills.filter(b => {
+                // Use status field (new format) — only skip bills confirmed paid by bank
+                if (b.status === 'processed') return false;  // bank confirmed, done
+                if (b.status) return true;                   // unpaid or pending — money must be there
+                return !b.paid;                              // old format fallback
+            }).forEach(b => {
                 const due = new Date(b.dueDate + 'T00:00:00');
                 // If bill is due before next next payday, it needs to be covered NOW
                 if (due <= nextNextPay) {
@@ -6174,6 +6188,43 @@
                 saveData('bill_cleanup_v2', true);
             }
 
+            // Step 2e: Add missing bills — water (quarterly) and SimpleFIN (monthly)
+            if (!loadData('bill_additions_v1')) {
+                const mkId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+                const hasWater = finBills.some(b => b.name.toLowerCase().includes('water'));
+                if (!hasWater) {
+                    finBills.push({
+                        id: mkId(),
+                        name: 'City Water & Sewer',
+                        amount: 85.00,       // PLACEHOLDER — update when bill arrives
+                        dueDate: '2026-05-15', // PLACEHOLDER — quarterly, update with real date
+                        recurring: 'quarterly',
+                        category: 'Utilities',
+                        status: 'unpaid',
+                        autoPay: false,
+                        paidBy: 'checking',
+                        notes: 'Quarterly bill — update amount and due date when it arrives'
+                    });
+                    changed = true;
+                }
+                const hasSimpleFIN = finBills.some(b => b.name.toLowerCase().includes('simplefin'));
+                if (!hasSimpleFIN) {
+                    finBills.push({
+                        id: mkId(),
+                        name: 'SimpleFIN',
+                        amount: 1.50,
+                        dueDate: '2026-03-15', // PLACEHOLDER — update with real charge date
+                        recurring: 'monthly',
+                        category: 'Subscriptions',
+                        status: 'unpaid',
+                        autoPay: true,
+                        paidBy: 'checking'
+                    });
+                    changed = true;
+                }
+                saveData('bill_additions_v1', true);
+            }
+
             // Step 3: Set account balances to last known real SimpleFIN values
             // $856.60 checking, $57.11 savings (from SimpleFIN 2026-02-24)
             // This runs every load. If the PC is running dashboard-server.py,
@@ -6743,7 +6794,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.4 — 2026-02-27</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.5 — 2026-02-27</div>
 
 </body>
 </html>
