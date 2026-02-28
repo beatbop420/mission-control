@@ -126,6 +126,55 @@
             color: #ffffff;
         }
 
+        /* ===== STATUS BAR ===== */
+        /* Shows only when something needs attention — hidden when everything is fine */
+        #app-status-bar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.4px;
+            margin-bottom: 12px;
+            transition: opacity 0.3s ease;
+        }
+        #app-status-bar.show { display: flex; }
+        #app-status-bar.status-offline {
+            background: rgba(232, 184, 75, 0.1);
+            border: 1px solid rgba(232, 184, 75, 0.3);
+            color: #e8b84b;
+        }
+        #app-status-bar.status-error {
+            background: rgba(212, 132, 154, 0.12);
+            border: 1px solid rgba(212, 132, 154, 0.35);
+            color: #d4849a;
+        }
+        #app-status-bar.status-ok {
+            background: rgba(78, 204, 159, 0.08);
+            border: 1px solid rgba(78, 204, 159, 0.25);
+            color: #4ecc9f;
+        }
+        #app-status-bar.status-info {
+            background: rgba(180, 141, 181, 0.08);
+            border: 1px solid rgba(180, 141, 181, 0.25);
+            color: #b48db5;
+        }
+        #status-dot { font-size: 9px; }
+        #status-dismiss {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.5;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 2px;
+            line-height: 1;
+        }
+        #status-dismiss:hover { opacity: 1; }
+
         /* ===== GRID LAYOUT ===== */
         .grid {
             display: grid;
@@ -1682,6 +1731,13 @@
         <span>Drop your shoulders</span> <span style="color:#ffffff; opacity:0.4; font-size:10px;">💎</span>
         <span>Take a breath</span> <span style="color:#ffffff; opacity:0.4; font-size:10px;">💎</span>
         <span>You're doing fine</span>
+    </div>
+
+    <!-- ====== STATUS BAR — shows errors, offline state, sync issues ====== -->
+    <div id="app-status-bar">
+        <span id="status-dot">●</span>
+        <span id="status-message"></span>
+        <button id="status-dismiss" onclick="clearStatus()" title="Dismiss">×</button>
     </div>
 
     <!-- ====== TOP-LEVEL TABS ====== -->
@@ -3287,11 +3343,13 @@
 
                 if (error) {
                     console.error('SYNC FAIL:', key, error);
+                    setStatus('error', 'Cloud save failed — data stored locally. Will retry when reconnected.');
                 } else {
                     console.log('SYNC OK:', key);
                 }
             } catch (err) {
                 console.error('SYNC ERROR:', key, err);
+                setStatus('error', 'Cloud save failed — data stored locally. Will retry when reconnected.');
             }
         }
 
@@ -3319,6 +3377,7 @@
 
                 if (error) {
                     console.error('SYNC DOWN FAIL:', error);
+                    setStatus('error', 'Could not load cloud data — using locally saved data.');
                     throw error;
                 }
                 if (!data || data.length === 0) {
@@ -5298,6 +5357,41 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
+        // --- Status bar — stays visible until dismissed or resolved ---
+        // type: 'ok' | 'offline' | 'error' | 'info'
+        // autoClear: true = fades out on its own after 4s (used for 'ok' confirmations)
+        let _statusTimeout = null;
+        function setStatus(type, message, autoClear = false) {
+            const bar = document.getElementById('app-status-bar');
+            const msg = document.getElementById('status-message');
+            if (!bar || !msg) return;
+            bar.className = 'show';
+            bar.classList.add('status-' + type);
+            msg.textContent = message;
+            if (_statusTimeout) clearTimeout(_statusTimeout);
+            if (autoClear || type === 'ok') {
+                _statusTimeout = setTimeout(clearStatus, 4000);
+            }
+        }
+        function clearStatus() {
+            const bar = document.getElementById('app-status-bar');
+            if (bar) bar.className = '';
+            if (_statusTimeout) { clearTimeout(_statusTimeout); _statusTimeout = null; }
+        }
+
+        // --- Browser online / offline detection ---
+        window.addEventListener('offline', () => {
+            setStatus('offline', 'Offline — running on saved data. Changes will sync when reconnected.');
+        });
+        window.addEventListener('online', () => {
+            setStatus('ok', 'Back online — syncing...', true);
+            // Re-fetch everything that might have been stale
+            syncFromCloud();
+            fetchBankBalances();
+            getWeather();
+            getPollen();
+        });
+
         // ========================================================================
         // ========== SYMPTOM TRACKER (body avatar) ==========
         // ========================================================================
@@ -6142,6 +6236,7 @@
                         if (match) {
                             bill.status = 'processed';
                             updated = true;
+                            showToast('✓ ' + bill.name + ' confirmed in bank');
                         }
                     });
                 }
@@ -6152,7 +6247,15 @@
                     renderFinance();
                 }
             } catch (e) {
-                // Silently fail — on phone/web, just use whatever Supabase has
+                // Local bank server not available (expected on phone/web)
+                // Show how stale the bank data is so the user knows
+                const lastFetch = loadData('bank_last_fetch');
+                if (lastFetch) {
+                    const hrs = Math.round((Date.now() - new Date(lastFetch).getTime()) / 3600000);
+                    if (hrs >= 24) {
+                        setStatus('info', 'Bank data last updated ' + hrs + 'h ago — open on PC to refresh, or wait for auto-sync (coming soon).');
+                    }
+                }
             }
         }
         // Try once on page load (no polling — bank only updates daily)
@@ -6640,7 +6743,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.3 — 2026-02-24</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.4 — 2026-02-27</div>
 
 </body>
 </html>
