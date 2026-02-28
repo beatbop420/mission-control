@@ -2113,7 +2113,6 @@
                     <button class="finance-tab" onclick="showFinanceTab('income', this)">Income</button>
                     <button class="finance-tab" onclick="showFinanceTab('log', this)">Log</button>
                     <button class="finance-tab" onclick="showFinanceTab('budget', this)">Budget</button>
-                    <button class="finance-tab" onclick="showFinanceTab('scenarios', this)">Scenarios</button>
                 </div>
 
                 <!-- ===== SMART ADVISOR — "What do I do this week?" ===== -->
@@ -2350,12 +2349,6 @@
                             <span class="alert-ref" id="budget-suggestion-detail"></span>
                         </div>
                     </div>
-                </div>
-
-                <!-- ===== SCENARIOS PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-scenarios">
-                    <div id="fin-scenarios-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('scenario')">+ Add Scenario</button>
                 </div>
 
             </div>
@@ -3365,7 +3358,7 @@
                 // All the localStorage keys that should be synced
                 const keysToMigrate = [
                     'fin_accounts', 'fin_bills', 'fin_income', 'fin_transactions',
-                    'fin_debts', 'fin_emergency', 'fin_scenarios',
+                    'fin_debts', 'fin_emergency',
                     'buckets', 'bucket_settings', 'paycheck_log',
                     'cycle_entries', 'kid_logs', 'timestamps', 'symptom_log',
                     'checkboxes', 'text_areas',
@@ -3481,9 +3474,6 @@
             btn.classList.add('active');
         }
 
-        // Scenarios stored in localStorage too
-        let finScenarios = loadData('fin_scenarios') || [];
-
         // --- RENDER ALL FINANCE DATA ---
         function renderFinance() {
             renderAccounts();
@@ -3493,7 +3483,6 @@
             renderAdvisor();
             renderIncome();
             renderTransactions();
-            renderScenarios();
             renderDebts();
             renderBudgetOverview();
             syncBucketsToAccounts();
@@ -4094,34 +4083,6 @@
             `).join('');
         }
 
-        // --- SCENARIOS ---
-        function renderScenarios() {
-            const list = document.getElementById('fin-scenarios-list');
-            if (finScenarios.length === 0) {
-                list.innerHTML = '<p style="color:#6b5660; font-size:13px; padding:10px 0;">No scenarios yet. Model "what if" situations — like what happens if insurance goes up or income drops.</p>';
-                return;
-            }
-            list.innerHTML = finScenarios.map(s => {
-                // Calculate: monthly income minus total expenses in this scenario
-                const totalExp = s.expenses || 0;
-                const remaining = s.monthlyIncome - totalExp;
-                const viable = remaining >= 0;
-                return `
-                <div class="finance-row">
-                    <div class="fr-left">
-                        <span class="fr-name">${s.name}</span>
-                        <span class="fr-detail">Income: $${s.monthlyIncome.toFixed(2)} · Expenses: $${totalExp.toFixed(2)} · ${s.description || ''}</span>
-                    </div>
-                    <div class="fr-right">
-                        <span class="fr-amount ${viable ? 'positive' : 'outgoing'}">${viable ? '' : '-'}$${Math.abs(remaining).toFixed(2)} left</span>
-                        <span style="font-size:12px; margin-left:4px;">${viable ? '✅' : '❌'}</span>
-                        <button class="finance-btn-sm" onclick="editFinanceItem('scenario','${s.id}')">edit</button>
-                        <button class="finance-btn-sm" onclick="deleteFinanceItem('scenario','${s.id}')">x</button>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
         // --- DEBTS ---
         function renderDebts() {
             const list = document.getElementById('fin-debt-list');
@@ -4554,7 +4515,6 @@
             if (type === 'bill') { finBills = finBills.filter(b => b.id !== id); saveData('fin_bills', finBills); }
             if (type === 'income') { finIncome = finIncome.filter(i => i.id !== id); saveData('fin_income', finIncome); }
             if (type === 'transaction') { finTransactions = finTransactions.filter(t => t.id !== id); saveData('fin_transactions', finTransactions); }
-            if (type === 'scenario') { finScenarios = finScenarios.filter(s => s.id !== id); saveData('fin_scenarios', finScenarios); }
             if (type === 'debt') { finDebts = finDebts.filter(d => d.id !== id); saveData('fin_debts', finDebts); }
             renderFinance();
         }
@@ -4574,9 +4534,6 @@
                 } else if (type === 'income') {
                     const i = finIncome.find(x => x.id === id);
                     if (i) { document.getElementById('ff-name').value = i.source; document.getElementById('ff-amount').value = i.amount; document.getElementById('ff-frequency').value = i.frequency || ''; document.getElementById('ff-date').value = i.nextDate || ''; }
-                } else if (type === 'scenario') {
-                    const s = finScenarios.find(x => x.id === id);
-                    if (s) { document.getElementById('ff-name').value = s.name; document.getElementById('ff-amount').value = s.monthlyIncome; document.getElementById('ff-expenses').value = s.expenses; document.getElementById('ff-desc').value = s.description || ''; }
                 } else if (type === 'debt') {
                     const d = finDebts.find(x => x.id === id);
                     if (d) {
@@ -4694,21 +4651,6 @@
                     <label>Date</label>
                     <input class="finance-input" id="ff-date" type="date" value="${todayStr}">
                 `;
-            } else if (type === 'scenario') {
-                title.textContent = editingId ? 'Edit Scenario' : 'Add Scenario';
-                // Calculate current total monthly bills to pre-fill
-                const currentMonthlyBills = finBills.reduce((sum, b) => sum + b.amount, 0);
-                fields.innerHTML = `
-                    <label>Scenario Name</label>
-                    <input class="finance-input" id="ff-name" placeholder="e.g. After Insurance Change, Low Income Month">
-                    <label>Monthly Income ($)</label>
-                    <input class="finance-input" id="ff-amount" type="number" step="0.01" placeholder="3000.00">
-                    <label>Total Monthly Expenses ($)</label>
-                    <input class="finance-input" id="ff-expenses" type="number" step="0.01" placeholder="${currentMonthlyBills.toFixed(2)}" value="${currentMonthlyBills.toFixed(2)}">
-                    <label>Description (optional)</label>
-                    <input class="finance-input" id="ff-desc" placeholder="e.g. What if insurance jumps to $900?">
-                    <p style="font-size:12px; color:#9a8a92; margin-top:4px;">Tip: change the expenses number to model different situations. The current total of your bills is pre-filled.</p>
-                `;
             } else if (type === 'debt') {
                 title.textContent = editingId ? 'Edit Debt' : 'Add Debt';
                 fields.innerHTML = `
@@ -4820,20 +4762,6 @@
                 if (!description) { alert('Describe the transaction'); return; }
                 finTransactions.push({ id: genId(), description, amount, category, date });
                 saveData('fin_transactions', finTransactions);
-
-            } else if (currentFormType === 'scenario') {
-                const name = document.getElementById('ff-name').value.trim();
-                const monthlyIncome = parseFloat(document.getElementById('ff-amount').value) || 0;
-                const expenses = parseFloat(document.getElementById('ff-expenses').value) || 0;
-                const description = document.getElementById('ff-desc').value.trim();
-                if (!name) { alert('Name your scenario'); return; }
-                if (editingId) {
-                    const s = finScenarios.find(x => x.id === editingId);
-                    if (s) { s.name = name; s.monthlyIncome = monthlyIncome; s.expenses = expenses; s.description = description; }
-                } else {
-                    finScenarios.push({ id: genId(), name, monthlyIncome, expenses, description });
-                }
-                saveData('fin_scenarios', finScenarios);
 
             } else if (currentFormType === 'debt') {
                 const name = document.getElementById('ff-name').value.trim();
@@ -6519,7 +6447,6 @@
             finIncome = loadData('fin_income') || [];
             finTransactions = loadData('fin_transactions') || [];
             finDebts = loadData('fin_debts') || [];
-            finScenarios = loadData('fin_scenarios') || [];
 
             // Step 3: Run preload + migrations AFTER data is loaded
             preloadFinanceData();
