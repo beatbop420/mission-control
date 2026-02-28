@@ -175,6 +175,60 @@
         }
         #status-dismiss:hover { opacity: 1; }
 
+        /* ===== SPENDING TRACKER ===== */
+        .spending-quick-add {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #1a1216;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        .spending-quick-add select,
+        .spending-quick-add input {
+            background: #2a1f24;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #d4ccc8;
+            font-family: inherit;
+            font-size: 13px;
+            padding: 8px 10px;
+        }
+        .spending-quick-add select { flex: 1; min-width: 130px; }
+        .spending-quick-add input[type="number"] { width: 85px; }
+        .spending-quick-add input[type="text"] { flex: 2; min-width: 90px; }
+        .spending-cat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .spending-cat-card {
+            background: #1a1216;
+            border-radius: 8px;
+            padding: 11px 13px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .spending-cat-name { font-size: 11px; color: #9a8a92; letter-spacing: 0.4px; }
+        .spending-cat-amount { font-size: 17px; font-weight: 600; color: #d4ccc8; }
+        .spending-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 13px;
+        }
+        .spending-entry-left { display: flex; flex-direction: column; gap: 2px; }
+        .spending-entry-cat { color: #b48db5; font-weight: 500; }
+        .spending-entry-note { color: #9a8a92; font-size: 11px; }
+        .spending-entry-right { display: flex; align-items: center; gap: 8px; }
+        .spending-entry-amount { color: #d4ccc8; font-weight: 500; }
+
         /* ===== GRID LAYOUT ===== */
         .grid {
             display: grid;
@@ -2169,6 +2223,7 @@
                     <button class="finance-tab" onclick="showFinanceTab('income', this)">Income</button>
                     <button class="finance-tab" onclick="showFinanceTab('log', this)">Log</button>
                     <button class="finance-tab" onclick="showFinanceTab('budget', this)">Budget</button>
+                    <button class="finance-tab" onclick="showFinanceTab('spending', this)">Spending</button>
                 </div>
 
                 <!-- ===== SMART ADVISOR — "What do I do this week?" ===== -->
@@ -2405,6 +2460,37 @@
                             <span class="alert-ref" id="budget-suggestion-detail"></span>
                         </div>
                     </div>
+                </div>
+
+                <!-- ===== SPENDING TRACKER PANEL ===== -->
+                <div class="finance-panel" id="fin-panel-spending">
+                    <p style="font-size:13px; color:#9a8a92; margin-bottom:12px;">Track variable spending — groceries, gas, pet supplies, etc. Not bills, just life money going out.</p>
+
+                    <!-- Quick-add row -->
+                    <div class="spending-quick-add">
+                        <select id="sp-category">
+                            <option value="Groceries">🛒 Groceries</option>
+                            <option value="Gas">⛽ Gas</option>
+                            <option value="Pet Supplies">🐾 Pet Supplies</option>
+                            <option value="Household">🏠 Household</option>
+                            <option value="Medical Copay">💊 Medical Copay</option>
+                            <option value="Dining/Takeout">🍕 Dining / Takeout</option>
+                            <option value="Personal Care">💅 Personal Care</option>
+                            <option value="Kids">🧒 Kids</option>
+                            <option value="Other">📦 Other</option>
+                        </select>
+                        <input type="number" id="sp-amount" placeholder="$0.00" step="0.01" min="0">
+                        <input type="text" id="sp-note" placeholder="Note (optional)">
+                        <button class="finance-add-btn" style="margin:0; padding:8px 16px; white-space:nowrap;" onclick="addSpendingEntry()">+ Add</button>
+                    </div>
+
+                    <!-- This month summary -->
+                    <div id="spending-month-label" style="font-size:11px; color:#9a8a92; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;"></div>
+                    <div id="spending-cat-grid" class="spending-cat-grid"></div>
+
+                    <!-- Recent entries -->
+                    <div style="font-size:11px; color:#9a8a92; letter-spacing:1px; text-transform:uppercase; margin:4px 0 8px;">Recent</div>
+                    <div id="spending-entries-list"></div>
                 </div>
 
             </div>
@@ -3417,7 +3503,7 @@
                 // All the localStorage keys that should be synced
                 const keysToMigrate = [
                     'fin_accounts', 'fin_bills', 'fin_income', 'fin_transactions',
-                    'fin_debts', 'fin_emergency',
+                    'fin_debts', 'fin_emergency', 'fin_spending',
                     'buckets', 'bucket_settings', 'paycheck_log',
                     'cycle_entries', 'kid_logs', 'timestamps', 'symptom_log',
                     'checkboxes', 'text_areas',
@@ -3463,6 +3549,7 @@
         let finIncome = loadData('fin_income') || [];
         let finTransactions = loadData('fin_transactions') || [];
         let finDebts = loadData('fin_debts') || [];
+        let finSpending = loadData('fin_spending') || [];
         let finEmergencyFund = loadData('fin_emergency') || { goal: 0, current: 0 };
 
         // --- BUCKET SYSTEM DATA (loaded early so everything can use it) ---
@@ -3545,6 +3632,7 @@
             renderTransactions();
             renderDebts();
             renderBudgetOverview();
+            renderSpending();
             syncBucketsToAccounts();
             updateFinanceSummary();
             renderStove();
@@ -4486,6 +4574,120 @@
                 sugDetail.textContent = 'Consider savings goals: big purchases, retirement, investments. Future you will thank present you.';
                 sugBox.className = 'alert-row level-green';
             }
+        }
+
+        // ========================================================================
+        // ========== SPENDING TRACKER ==========
+        // ========================================================================
+
+        // Category → emoji map
+        const SPENDING_CATS = {
+            'Groceries':      '🛒',
+            'Gas':            '⛽',
+            'Pet Supplies':   '🐾',
+            'Household':      '🏠',
+            'Medical Copay':  '💊',
+            'Dining/Takeout': '🍕',
+            'Personal Care':  '💅',
+            'Kids':           '🧒',
+            'Other':          '📦'
+        };
+
+        function renderSpending() {
+            const now = new Date();
+            const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+            const monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+
+            // Only this month's entries
+            const thisMonth = finSpending.filter(e => e.date && e.date.startsWith(monthKey));
+
+            const labelEl = document.getElementById('spending-month-label');
+            if (labelEl) labelEl.textContent = monthLabel;
+
+            // Tally by category
+            const catTotals = {};
+            let monthTotal = 0;
+            thisMonth.forEach(e => {
+                catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+                monthTotal += e.amount;
+            });
+
+            // Category grid
+            const grid = document.getElementById('spending-cat-grid');
+            if (grid) {
+                if (Object.keys(catTotals).length === 0) {
+                    grid.innerHTML = '<p style="color:#6b5660; font-size:13px; padding:4px 0 12px;">Nothing logged yet this month.</p>';
+                } else {
+                    grid.innerHTML = Object.entries(catTotals)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([cat, total]) => `
+                            <div class="spending-cat-card">
+                                <span class="spending-cat-name">${SPENDING_CATS[cat] || '📦'} ${cat}</span>
+                                <span class="spending-cat-amount">${fmt$(total)}</span>
+                            </div>
+                        `).join('')
+                        + `<div class="spending-cat-card" style="border:1px solid rgba(212,132,154,0.2);">
+                                <span class="spending-cat-name">📊 Total out</span>
+                                <span class="spending-cat-amount" style="color:#d4849a;">${fmt$(monthTotal)}</span>
+                           </div>`;
+                }
+            }
+
+            // Recent entries list (last 30, newest first)
+            const list = document.getElementById('spending-entries-list');
+            if (list) {
+                const recent = [...finSpending].sort((a, b) => (b.date > a.date ? 1 : -1)).slice(0, 30);
+                if (recent.length === 0) {
+                    list.innerHTML = '<p style="color:#6b5660; font-size:13px; padding:4px 0;">No entries yet.</p>';
+                } else {
+                    list.innerHTML = recent.map(e => `
+                        <div class="spending-entry">
+                            <div class="spending-entry-left">
+                                <span class="spending-entry-cat">${SPENDING_CATS[e.category] || '📦'} ${e.category}</span>
+                                <span class="spending-entry-note">${e.date}${e.note ? ' · ' + e.note : ''}</span>
+                            </div>
+                            <div class="spending-entry-right">
+                                <span class="spending-entry-amount">${fmt$(e.amount)}</span>
+                                <button class="finance-btn-sm" onclick="deleteSpendingEntry('${e.id}')">x</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function addSpendingEntry() {
+            const cat = document.getElementById('sp-category').value;
+            const amtRaw = parseFloat(document.getElementById('sp-amount').value);
+            const note = document.getElementById('sp-note').value.trim();
+
+            if (!cat || isNaN(amtRaw) || amtRaw <= 0) {
+                showToast('Enter a category and amount');
+                return;
+            }
+
+            const mkId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+            finSpending.push({
+                id: mkId(),
+                date: new Date().toISOString().split('T')[0],
+                category: cat,
+                amount: amtRaw,
+                note: note
+            });
+            saveData('fin_spending', finSpending);
+
+            // Clear amount + note, keep category for quick re-entry
+            document.getElementById('sp-amount').value = '';
+            document.getElementById('sp-note').value = '';
+
+            renderSpending();
+            showToast('Logged ' + fmt$(amtRaw) + ' — ' + cat);
+        }
+
+        function deleteSpendingEntry(id) {
+            finSpending = finSpending.filter(e => e.id !== id);
+            saveData('fin_spending', finSpending);
+            renderSpending();
         }
 
         // --- FORMAT DOLLARS HELPER (global) ---
@@ -6601,6 +6803,7 @@
             finIncome = loadData('fin_income') || [];
             finTransactions = loadData('fin_transactions') || [];
             finDebts = loadData('fin_debts') || [];
+            finSpending = loadData('fin_spending') || [];
 
             // Step 3: Run preload + migrations AFTER data is loaded
             preloadFinanceData();
@@ -6794,7 +6997,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.5 — 2026-02-27</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.6 — 2026-02-27</div>
 
 </body>
 </html>
