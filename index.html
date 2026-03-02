@@ -993,6 +993,99 @@
             font-weight: 700;
         }
 
+        /* ===== FINANCE BRAIN PANEL ===== */
+        .brain-hero {
+            text-align: center;
+            padding: 16px 0 20px;
+        }
+        .brain-sts-label {
+            font-size: 10px;
+            color: #9a8a92;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+        .brain-sts-number {
+            font-size: 52px;
+            font-weight: 700;
+            line-height: 1;
+            transition: color 0.3s;
+        }
+        .brain-sts-number.good  { color: #6bbf7b; }
+        .brain-sts-number.tight { color: #e8b84b; }
+        .brain-sts-number.negative { color: #d4849a; }
+        .brain-sts-sub {
+            font-size: 12px;
+            color: #6b5660;
+            margin-top: 8px;
+        }
+        .brain-section-label {
+            font-size: 10px;
+            color: #9a8a92;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 16px 0 8px;
+        }
+        .brain-bill-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 10px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 13px;
+            background: #1a1216;
+        }
+        .brain-bill-row.critical { border-left: 3px solid #d4849a; }
+        .brain-bill-row.important { border-left: 3px solid #e8b84b; }
+        .brain-bill-row.flexible { border-left: 3px solid #3d2f35; }
+        .brain-bill-row.paid { border-left: 3px solid #6bbf7b; opacity: 0.5; }
+        .brain-fund {
+            background: #1a1216;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+        }
+        .brain-fund-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .brain-fund-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: #d4ccc8;
+        }
+        .brain-fund-nums {
+            font-size: 12px;
+            color: #9a8a92;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .brain-fund-bar {
+            width: 100%;
+            height: 8px;
+            background: #3d2f35;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .brain-fund-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s;
+        }
+        .brain-alert {
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-top: 14px;
+        }
+        .brain-alert.good  { background: rgba(107,191,123,0.08); border-left: 3px solid #6bbf7b; color: #d4ccc8; }
+        .brain-alert.tight { background: rgba(232,184,75,0.08); border-left: 3px solid #e8b84b; color: #d4ccc8; }
+        .brain-alert.red   { background: rgba(212,132,154,0.08); border-left: 3px solid #d4849a; color: #d4ccc8; }
+
         /* Small action buttons (edit, delete, mark paid) */
         .finance-btn-sm {
             background: none;
@@ -2212,7 +2305,8 @@
 
                 <!-- Tab buttons — Advisor is default, the "what do I do" view -->
                 <div class="finance-tabs">
-                    <button class="finance-tab active" onclick="showFinanceTab('advisor', this)" style="background:#d4849a; border-color:#d4849a; color:#fff; font-weight:600;">Advisor</button>
+                    <button class="finance-tab active" onclick="showFinanceTab('brain', this)" style="background:#d4849a; border-color:#d4849a; color:#fff; font-weight:600;">🧠 Brain</button>
+                    <button class="finance-tab" onclick="showFinanceTab('advisor', this)">Advisor</button>
                     <button class="finance-tab" onclick="showFinanceTab('stove', this)">Stove</button>
                     <button class="finance-tab" onclick="showFinanceTab('timeline', this)">Timeline</button>
                     <button class="finance-tab" onclick="showFinanceTab('ledger', this)">Ledger</button>
@@ -2226,8 +2320,31 @@
                     <button class="finance-tab" onclick="showFinanceTab('spending', this)">Spending</button>
                 </div>
 
+                <!-- ===== FINANCE BRAIN — Smart money overview ===== -->
+                <div class="finance-panel active" id="fin-panel-brain">
+                    <!-- Big Safe to Spend number — the ONE number that matters -->
+                    <div class="brain-hero">
+                        <div class="brain-sts-label">Safe to Spend</div>
+                        <div class="brain-sts-number good" id="brain-sts">$—</div>
+                        <div class="brain-sts-sub" id="brain-sts-sub">loading...</div>
+                    </div>
+
+                    <!-- Bills due in next 14 days -->
+                    <div class="brain-section-label">Bills Next 14 Days</div>
+                    <div id="brain-bills-list">
+                        <p style="color:#6b5660; font-size:13px; padding:8px 0;">Loading...</p>
+                    </div>
+
+                    <!-- Sinking funds — Car / Medical / Animals -->
+                    <div class="brain-section-label">Sinking Funds <span style="font-size:10px; color:#6b5660; margin-left:8px;">tap amount to update</span></div>
+                    <div id="brain-funds-list"></div>
+
+                    <!-- Smart alert box -->
+                    <div id="brain-alert" class="brain-alert good" style="display:none;"></div>
+                </div>
+
                 <!-- ===== SMART ADVISOR — "What do I do this week?" ===== -->
-                <div class="finance-panel active" id="fin-panel-advisor">
+                <div class="finance-panel" id="fin-panel-advisor">
                     <div id="fin-advisor-content">
                         <p style="color:#6b5660; font-size:13px; padding:10px 0;">Loading advisor...</p>
                     </div>
@@ -3552,6 +3669,14 @@
         let finSpending = loadData('fin_spending') || [];
         let finEmergencyFund = loadData('fin_emergency') || { goal: 0, current: 0 };
 
+        // --- SINKING FUNDS — small savings pools for irregular expenses ---
+        // Car repair / Medical / Animals — each gets $50/paycheck until funded
+        let sinkingFunds = loadData('sinking_funds') || [
+            { id: 'car',     name: '🚗 Car Repair', goal: 2000, balance: 0, perPaycheck: 50 },
+            { id: 'medical', name: '💊 Medical',     goal: 500,  balance: 0, perPaycheck: 50 },
+            { id: 'animals', name: '🐾 Animals',     goal: 500,  balance: 0, perPaycheck: 50 },
+        ];
+
         // --- BUCKET SYSTEM DATA (loaded early so everything can use it) ---
         let buckets = loadData('buckets') || {
             fixed: { balance: 0, needed: 0 },
@@ -3627,6 +3752,7 @@
             renderBills();
             renderTimeline();
             renderLedger();
+            renderBrain();
             renderAdvisor();
             renderIncome();
             renderTransactions();
@@ -4179,6 +4305,182 @@
             }
 
             container.innerHTML = html;
+        }
+
+        // --- FINANCE BRAIN ---
+        // The smart overview: Safe to Spend, bills next 14 days, sinking funds.
+        function renderBrain() {
+            // Get checking balance from accounts
+            const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+            const balance = checking ? checking.balance : 0;
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Get next payday from bucket settings
+            const bSettings = loadData('bucket_settings') || {};
+            const nextPayday = bSettings.nextPayday ? new Date(bSettings.nextPayday + 'T00:00:00') : null;
+            const daysToPayday = nextPayday ? Math.ceil((nextPayday - today) / (1000*60*60*24)) : null;
+            const lastFetch = loadData('bank_last_fetch');
+
+            // Bill priority helper — same tiers as Advisor
+            function getBillPriority(bill) {
+                const name = (bill.name || '').toLowerCase();
+                const cat  = (bill.category || '').toLowerCase();
+                if (cat === 'housing' || name.includes('mortgage') || name.includes('rent')) return 'critical';
+                if (cat === 'utilities' || name.includes('electric') || name.includes('les') || name.includes('black hills') || name.includes('water')) return 'critical';
+                if (cat === 'insurance' || name.includes('bcbs') || name.includes('insurance') || name.includes('delta dental')) return 'critical';
+                if (name.includes('verizon') || name.includes('phone') || name.includes('allo') || name.includes('internet')) return 'important';
+                if (cat === 'medical' || cat === 'dental') return 'important';
+                if (cat === 'debt' || name.includes('loan') || name.includes('pcr') || name.includes('nfcu')) return 'important';
+                if (name.includes('child support') || name.includes('storage')) return 'important';
+                return 'flexible';
+            }
+
+            // Normalize bill statuses
+            finBills.forEach(b => { if (!b.status) b.status = b.paid ? 'processed' : 'unpaid'; });
+
+            // Find all unpaid bills due in next 14 days (recurring projected to current month)
+            const twoWeeks = new Date(today);
+            twoWeeks.setDate(twoWeeks.getDate() + 14);
+
+            const upcoming14 = [];
+            finBills.forEach(b => {
+                if (b.status !== 'unpaid') return;
+                if (!b.dueDate) return;
+                const raw = new Date(b.dueDate + 'T00:00:00');
+                let projected = raw;
+                if (b.recurring) {
+                    // Project to this month (or next if already past)
+                    const dueDay = raw.getDate();
+                    projected = new Date(today.getFullYear(), today.getMonth(), dueDay);
+                    if (projected < today) projected.setMonth(projected.getMonth() + 1);
+                }
+                if (projected <= twoWeeks) {
+                    upcoming14.push({ ...b, _projected: projected });
+                }
+            });
+
+            // Sort by due date, soonest first
+            upcoming14.sort((a, b) => a._projected - b._projected);
+
+            // Bills due between today and next paycheck → subtracted from Safe to Spend
+            const billsBeforePayday = nextPayday
+                ? upcoming14.filter(b => b._projected <= nextPayday)
+                : upcoming14;
+            const totalBeforePayday = billsBeforePayday.reduce((sum, b) => sum + (b.amount || 0), 0);
+
+            // ─── SAFE TO SPEND ──────────────────────────────────────────────
+            const safeToSpend = balance - totalBeforePayday;
+
+            const stsEl  = document.getElementById('brain-sts');
+            const stsSub = document.getElementById('brain-sts-sub');
+            if (stsEl) {
+                stsEl.textContent = fmt$(safeToSpend);
+                stsEl.className   = 'brain-sts-number ' +
+                    (safeToSpend >= 200 ? 'good' : safeToSpend >= 0 ? 'tight' : 'negative');
+            }
+            if (stsSub) {
+                const paydayStr = nextPayday
+                    ? nextPayday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : 'next paycheck';
+                const syncNote = lastFetch ? ' · synced ' + lastFetch : '';
+                stsSub.textContent = 'checking ' + fmt$(balance) + ' − '
+                    + fmt$(totalBeforePayday) + ' bills due by ' + paydayStr + syncNote;
+            }
+
+            // ─── BILLS LIST ─────────────────────────────────────────────────
+            const billsEl = document.getElementById('brain-bills-list');
+            if (billsEl) {
+                if (upcoming14.length === 0) {
+                    billsEl.innerHTML = '<p style="color:#6bbf7b; font-size:13px; padding:8px 0;">✓ No unpaid bills due in the next 14 days. Clear.</p>';
+                } else {
+                    let html = '';
+                    upcoming14.forEach(b => {
+                        const p        = getBillPriority(b);
+                        const dateStr  = b._projected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const isOverdue = b._projected < today;
+                        const isSoon   = !isOverdue && (b._projected - today) / 864e5 <= 2;
+                        const dueLbl   = isOverdue ? '🔴 OVERDUE' : (isSoon ? '⚡ ' + dateStr : dateStr);
+
+                        html += '<div class="brain-bill-row ' + p + '">';
+                        html += '<div>';
+                        html += '<span style="color:#d4ccc8; font-weight:500;">' + b.name + '</span>';
+                        html += '<span style="font-size:11px; color:#6b5660; margin-left:8px;">' + dueLbl + '</span>';
+                        html += '</div>';
+                        html += '<span style="font-weight:600; color:#d4ccc8;">' + fmt$(b.amount) + '</span>';
+                        html += '</div>';
+                    });
+                    billsEl.innerHTML = html;
+                }
+            }
+
+            // ─── SINKING FUNDS ──────────────────────────────────────────────
+            const fundsEl = document.getElementById('brain-funds-list');
+            if (fundsEl) {
+                let html = '';
+                sinkingFunds.forEach(fund => {
+                    const pct = fund.goal > 0 ? Math.min(100, Math.round((fund.balance / fund.goal) * 100)) : 0;
+                    const fillColor = pct >= 80 ? '#6bbf7b' : pct >= 40 ? '#e8b84b' : '#d4849a';
+                    html += '<div class="brain-fund">';
+                    html += '  <div class="brain-fund-top">';
+                    html += '    <span class="brain-fund-name">' + fund.name + '</span>';
+                    html += '    <div style="display:flex; gap:10px; align-items:center;">';
+                    html += '      <span class="brain-fund-nums" onclick="editSinkingFund(\'' + fund.id + '\')">'
+                         + fmt$(fund.balance) + ' / ' + fmt$(fund.goal) + '</span>';
+                    html += '      <span style="font-size:10px; color:#6b5660;">+' + fmt$(fund.perPaycheck) + '/check</span>';
+                    html += '    </div>';
+                    html += '  </div>';
+                    html += '  <div class="brain-fund-bar">';
+                    html += '    <div class="brain-fund-fill" style="width:' + pct + '%; background:' + fillColor + ';"></div>';
+                    html += '  </div>';
+                    html += '  <div style="font-size:10px; color:#9a8a92; margin-top:4px;">' + pct + '% funded</div>';
+                    html += '</div>';
+                });
+                fundsEl.innerHTML = html;
+            }
+
+            // ─── SMART ALERT ────────────────────────────────────────────────
+            const alertEl = document.getElementById('brain-alert');
+            if (alertEl) {
+                let alertMsg   = '';
+                let alertClass = 'good';
+                const paydayStr = nextPayday
+                    ? nextPayday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : 'payday';
+
+                if (safeToSpend < 0) {
+                    alertClass = 'red';
+                    alertMsg = '🚨 You\'re ' + fmt$(Math.abs(safeToSpend))
+                        + ' short to cover bills before ' + paydayStr + '.'
+                        + (daysToPayday ? ' Paycheck in ' + daysToPayday + ' days.' : '');
+                } else if (safeToSpend < 100 && nextPayday) {
+                    alertClass = 'tight';
+                    alertMsg = '⚠️ Only ' + fmt$(safeToSpend) + ' left after bills. Tight until '
+                        + paydayStr + (daysToPayday ? ' (' + daysToPayday + ' days)' : '') + '.';
+                } else if (upcoming14.length > 0) {
+                    alertClass = 'good';
+                    alertMsg = '✓ Bills covered. ' + fmt$(safeToSpend) + ' free to spend until next paycheck.';
+                } else {
+                    alertClass = 'good';
+                    alertMsg = '✓ No bills due soon. You\'re in the clear.';
+                }
+
+                alertEl.textContent = alertMsg;
+                alertEl.className   = 'brain-alert ' + alertClass;
+                alertEl.style.display = alertMsg ? 'block' : 'none';
+            }
+        }
+
+        // Tap the amount on a sinking fund to update its balance
+        function editSinkingFund(id) {
+            const fund = sinkingFunds.find(f => f.id === id);
+            if (!fund) return;
+            const newBalance = parseFloat(prompt(fund.name + '\nCurrent balance: ' + fmt$(fund.balance) + '\n\nEnter new balance:', fund.balance));
+            if (isNaN(newBalance) || newBalance < 0) return;
+            fund.balance = newBalance;
+            saveData('sinking_funds', sinkingFunds);
+            renderBrain();
         }
 
         // --- INCOME ---
@@ -6997,7 +7299,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.6 — 2026-02-27</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.7 — 2026-03-02</div>
 
 </body>
 </html>
