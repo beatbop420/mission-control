@@ -2,24 +2,25 @@
 // Think of it like a little helper that sits between your app and the internet.
 // It saves copies of your files so the app loads even with no wifi.
 
-const CACHE_NAME = 'mission-control-v17';
+const CACHE_NAME = 'mission-control-v18';
 
 // Figure out where the app lives (works on both GitHub Pages and custom domains)
 // On GitHub Pages: /mission-control/  |  On custom domain: /
 const BASE = self.location.pathname.replace('sw.js', '');
 
-// Files to save for offline use (paths relative to where the app is hosted)
+// Files to pre-cache for offline use.
+// NOTE: index.html and login.html are intentionally NOT in this list.
+// They should always be fetched fresh from the network so updates show up
+// immediately on iPhone without needing to clear Safari cache.
+// The network-first fetch handler below will cache them automatically on first visit.
 const FILES_TO_CACHE = [
-    BASE,
-    BASE + 'index.html',
-    BASE + 'login.html',
     BASE + 'supabase-config.js',
     BASE + 'manifest.json',
     BASE + 'icons/icon-192.png',
     BASE + 'icons/icon-512.png'
 ];
 
-// INSTALL: when the service worker first sets up, cache all the core files
+// INSTALL: when the service worker first sets up, cache the static assets
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
