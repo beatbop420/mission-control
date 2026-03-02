@@ -5976,7 +5976,7 @@
         // --- Status bar — stays visible until dismissed or resolved ---
         // type: 'ok' | 'offline' | 'error' | 'info'
         // autoClear: true = fades out on its own after 4s (used for 'ok' confirmations)
-        let _statusTimeout = null;
+        var _statusTimeout = null;
         function setStatus(type, message, autoClear = false) {
             const bar = document.getElementById('app-status-bar');
             const msg = document.getElementById('status-message');
@@ -7443,7 +7443,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8.2 — 2026-03-02</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8.3 — 2026-03-02</div>
 
 </body>
 </html>
