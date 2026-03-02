@@ -1,0 +1,31 @@
+name: Sync Bank Data
+
+# Runs every 6 hours automatically + can be triggered manually
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 12am, 6am, 12pm, 6pm UTC (7pm/1am/7am/1pm CT)
+  workflow_dispatch:          # also lets you click "Run workflow" in GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5        # fail fast if SimpleFIN is down
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install httpx
+
+      - name: Fetch SimpleFIN and save to Supabase
+        env:
+          SIMPLEFIN_ACCESS_URL: ${{ secrets.SIMPLEFIN_ACCESS_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/sync_bank_data.py

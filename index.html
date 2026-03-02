@@ -1855,6 +1855,109 @@
             transform: scale(0.95) rotate(15deg);
         }
 
+        /* ===== MOBILE RESPONSIVE — phones 600px and under ===== */
+        @media (max-width: 600px) {
+
+            /* Give the body a little more breathing room on small screens */
+            body { padding: 10px 8px; }
+
+            /* Header — smaller title, tighter spacing */
+            .header h1    { font-size: 20px; letter-spacing: 1px; }
+            .header-crown { font-size: 32px; }
+            .header .date { font-size: 14px; }
+            .header .time { font-size: 28px; }
+
+            /* Corner dog and wand — move in a bit so they don't overlap */
+            .corner-dog  { font-size: 28px; top: 8px; right: 10px; }
+            .magic-wand  { font-size: 24px; top: 8px; right: 46px; }
+
+            /* Main nav tabs — fill width evenly, bigger touch targets */
+            .main-tabs { gap: 4px; }
+            .main-tab  { padding: 10px 14px; font-size: 13px; flex: 1; text-align: center; }
+
+            /* Cards — less padding on mobile */
+            .card { padding: 12px 10px; border-radius: 10px; }
+            .card h2 { font-size: 16px; margin-bottom: 10px; }
+
+            /* Grid — always single column on mobile */
+            .grid { grid-template-columns: 1fr; gap: 10px; }
+
+            /* Finance summary bar — 2 columns instead of 3 */
+            .finance-summary { grid-template-columns: 1fr 1fr; }
+            .finance-summary-box .fs-value { font-size: 16px; }
+            .finance-summary-box .fs-label { font-size: 10px; }
+
+            /* Finance sub-tabs — smaller text, tighter padding, allow wrap */
+            .finance-tabs { gap: 3px; margin-bottom: 10px; }
+            .finance-tab  { padding: 6px 9px; font-size: 11px; }
+
+            /* Brain panel — slightly smaller hero number */
+            .brain-sts-number { font-size: 40px; }
+            .brain-sts-sub    { font-size: 11px; }
+            .brain-section-label { font-size: 10px; }
+            .brain-bill-row { font-size: 12px; padding: 6px 8px; }
+            .brain-fund     { padding: 10px 12px; }
+
+            /* Advisor big balance number */
+            .advisor-balance      { font-size: 26px; padding: 8px 0; }
+            .advisor-leftover     { grid-template-columns: 1fr 1fr; }
+            .advisor-leftover-value { font-size: 18px; }
+
+            /* Stove grid — 2x2 instead of 2+3 */
+            /* (stove uses inline grid — override here) */
+
+            /* Bucket cards — 2 columns still works on most phones */
+            /* leave as-is */
+
+            /* Bill rows — tighten up */
+            .finance-row { padding: 6px 8px; font-size: 13px; }
+            .finance-row .fr-name   { font-size: 13px; }
+            .finance-row .fr-detail { font-size: 10px; }
+            .finance-row .fr-amount { font-size: 13px; }
+
+            /* Finance form overlay — full screen on mobile */
+            .finance-form { width: 95%; max-width: none; margin: 20px auto; }
+
+            /* Spending quick-add — stack vertically */
+            .spending-quick-add {
+                flex-direction: column;
+                gap: 6px;
+            }
+            .spending-quick-add select,
+            .spending-quick-add input,
+            .spending-quick-add button {
+                width: 100%;
+                min-width: unset;
+            }
+
+            /* Timeline — allow horizontal scroll so it doesn't squish */
+            .timeline-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+            /* Ledger — same */
+            .ledger-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+            /* Right Now tab — max-width already set to 600px, just remove padding */
+            .rightnow { padding: 6px 0; }
+
+            /* Alerts — tighter */
+            .alert-row { padding: 8px 10px; }
+            .alert-icon { font-size: 18px; }
+            .alert-text { font-size: 13px; }
+
+            /* App status bar — tighter text */
+            #app-status-bar { font-size: 12px; padding: 6px 10px; }
+
+            /* Add buttons — full width on mobile for easy tapping */
+            .finance-add-btn { width: 100%; margin-bottom: 4px; }
+
+            /* Small action buttons — slightly bigger tap target */
+            .finance-btn-sm { padding: 5px 10px; font-size: 12px; }
+
+            /* Debt summary — 2 col */
+            #debt-summary-bar { grid-template-columns: 1fr 1fr; }
+
+        }
+
     </style>
 </head>
 <body>
@@ -6730,10 +6833,9 @@
             }
 
             // Step 3: Set account balances to last known real SimpleFIN values
-            // $856.60 checking, $57.11 savings (from SimpleFIN 2026-02-24)
-            // This runs every load. If the PC is running dashboard-server.py,
-            // fetchBankBalances() will overwrite with the CURRENT real balance afterward.
-            // On the phone (no server), this is the best we have.
+            // These are the emergency fallback — fetchBankBalances() overwrites them
+            // with real data from either the local server OR the GitHub Actions cloud sync.
+            // Only shown if both sources are unavailable.
             const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
             if (checking) {
                 checking.balance = 856.60;
@@ -6749,71 +6851,111 @@
             if (changed) saveData('fin_bills', finBills);
         }
 
-        // --- FETCH BANK BALANCES (works with local server OR saved Supabase data) ---
-        async function fetchBankBalances() {
-            try {
-                // Try local server first (only works on PC with dashboard-server.py running)
-                const response = await fetch('/balances');
-                if (!response.ok) return;
-                const data = await response.json();
-                if (data.error || !data.accounts || data.accounts.length === 0) return;
+        // --- APPLY BANK DATA — shared processing used by all data sources ---
+        // Called by fetchBankBalances() whether data came from local server or cloud.
+        function applyBankData(data, source) {
+            let updated = false;
 
-                let updated = false;
-                // Update account balances from bank
-                data.accounts.forEach(bankAccount => {
-                    const name = bankAccount.name.toLowerCase();
-                    const realBalance = bankAccount.available || bankAccount.balance;
-                    if (name.includes('checking')) {
-                        const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-                        if (checking && checking.balance !== realBalance) {
-                            checking.balance = realBalance;
-                            updated = true;
-                        }
-                    }
-                    if (name.includes('saving')) {
-                        const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
-                        if (savings && savings.balance !== realBalance) {
-                            savings.balance = realBalance;
-                            updated = true;
-                        }
+            // Update account balances
+            data.accounts.forEach(bankAccount => {
+                const name = bankAccount.name.toLowerCase();
+                // Use SimpleFIN's available-balance (posted + card pending) as the balance
+                const realBalance = bankAccount.available || bankAccount.balance;
+                if (name.includes('checking')) {
+                    const acc = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+                    if (acc && acc.balance !== realBalance) { acc.balance = realBalance; updated = true; }
+                }
+                if (name.includes('saving')) {
+                    const acc = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
+                    if (acc && acc.balance !== realBalance) { acc.balance = realBalance; updated = true; }
+                }
+            });
+
+            // Auto-match pending bills to posted transactions
+            const allTxns = [];
+            data.accounts.forEach(a => { if (a.transactions) allTxns.push(...a.transactions); });
+            if (allTxns.length > 0) {
+                const pendingBills = finBills.filter(b => b.status === 'pending');
+                pendingBills.forEach(bill => {
+                    const matchAmt = bill.paidAmount || bill.amount;
+                    const match = allTxns.find(txn => {
+                        if (Math.abs(txn.amount - matchAmt) > 0.02) return false;
+                        if (bill.paidDate && txn.date) return txn.date >= bill.paidDate;
+                        return true;
+                    });
+                    if (match) {
+                        bill.status = 'processed';
+                        updated = true;
+                        showToast('✓ ' + bill.name + ' confirmed in bank');
                     }
                 });
-                // Auto-match pending bills to bank transactions
-                if (data.transactions && data.transactions.length > 0) {
-                    const pendingBills = finBills.filter(b => b.status === 'pending');
-                    pendingBills.forEach(bill => {
-                        const matchAmt = bill.paidAmount || bill.amount;
-                        const match = data.transactions.find(txn => {
-                            if (Math.abs(txn.amount - matchAmt) > 0.02) return false;
-                            if (bill.paidDate && txn.date) return txn.date >= bill.paidDate;
-                            return true;
-                        });
-                        if (match) {
-                            bill.status = 'processed';
-                            updated = true;
-                            showToast('✓ ' + bill.name + ' confirmed in bank');
-                        }
-                    });
-                }
-                if (updated) {
-                    saveData('fin_accounts', finAccounts);
-                    saveData('fin_bills', finBills);
-                    saveData('bank_last_fetch', data.fetched_at_human || new Date().toISOString());
-                    renderFinance();
+            }
+
+            // Always save the fetch timestamp so we can show staleness
+            const fetchLabel = data.fetched_at_human || data.fetched_at || new Date().toISOString();
+            saveData('bank_last_fetch', fetchLabel);
+            saveData('bank_data_source', source || 'unknown');
+
+            if (updated) {
+                saveData('fin_accounts', finAccounts);
+                saveData('fin_bills', finBills);
+                renderFinance();
+            }
+        }
+
+        // --- FETCH BANK BALANCES ---
+        // Priority: 1) Local Python server  2) GitHub Actions cloud sync (Supabase)  3) stale warning
+        async function fetchBankBalances() {
+            // ── 1. Try local server (PC only, freshest data) ─────────────────
+            try {
+                const response = await fetch('/balances', { signal: AbortSignal.timeout(3000) });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.error && data.accounts && data.accounts.length > 0) {
+                        applyBankData(data, 'local');
+                        console.log('BANK: Updated from local server');
+                        return;  // got fresh data, done
+                    }
                 }
             } catch (e) {
-                // Local bank server not available (expected on phone/web)
-                // Show how stale the bank data is so the user knows
-                const lastFetch = loadData('bank_last_fetch');
-                if (lastFetch) {
-                    const hrs = Math.round((Date.now() - new Date(lastFetch).getTime()) / 3600000);
-                    if (hrs >= 24) {
-                        setStatus('info', 'Bank data last updated ' + hrs + 'h ago — open on PC to refresh, or wait for auto-sync (coming soon).');
+                // Local server not running — expected on phone or when PC server is off
+            }
+
+            // ── 2. Try Supabase bank_cache (updated by GitHub Actions every 6h) ──
+            try {
+                const { data: row, error } = await supabaseClient
+                    .from('bank_cache')
+                    .select('data, fetched_at')
+                    .eq('id', 1)
+                    .single();
+
+                if (!error && row && row.data && row.data.accounts) {
+                    applyBankData(row.data, 'cloud');
+                    const hrs = row.fetched_at
+                        ? Math.round((Date.now() - new Date(row.fetched_at).getTime()) / 3600000)
+                        : null;
+                    console.log('BANK: Updated from cloud cache' + (hrs !== null ? ' (' + hrs + 'h old)' : ''));
+                    // Only show a status message if data is getting stale
+                    if (hrs !== null && hrs >= 8) {
+                        setStatus('info', 'Bank data from ' + (row.data.fetched_at_human || hrs + 'h ago') + ' (cloud auto-sync)');
                     }
+                    return;
+                }
+            } catch (cloudErr) {
+                console.log('BANK: Cloud cache not available:', cloudErr.message);
+            }
+
+            // ── 3. Neither source available — show staleness warning ─────────
+            const lastFetch = loadData('bank_last_fetch');
+            if (lastFetch) {
+                const hrs = Math.round((Date.now() - new Date(lastFetch).getTime()) / 3600000);
+                if (hrs >= 6) {
+                    const src = loadData('bank_data_source') === 'cloud' ? 'cloud sync' : 'PC server';
+                    setStatus('info', 'Bank data ' + hrs + 'h old (last from ' + src + ') — will refresh when online');
                 }
             }
         }
-        // Try once on page load (no polling — bank only updates daily)
+        // Run once on page load
         fetchBankBalances();
 
         // --- Add paycheck/bucket form handlers to the existing saveFinanceForm ---
@@ -7299,7 +7441,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.7 — 2026-03-02</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8 — 2026-03-02</div>
 
 </body>
 </html>
