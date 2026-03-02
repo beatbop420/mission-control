@@ -6833,19 +6833,21 @@
             }
 
             // Step 3: Set account balances to last known real SimpleFIN values
-            // These are the emergency fallback — fetchBankBalances() overwrites them
-            // with real data from either the local server OR the GitHub Actions cloud sync.
-            // Only shown if both sources are unavailable.
-            const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-            if (checking) {
-                checking.balance = 856.60;
-            }
-            const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
-            if (savings) {
-                savings.balance = 57.11;
-            }
-            if (finAccounts.length > 0) {
-                saveData('fin_accounts', finAccounts);
+            // ONE-TIME only — only runs if balances have never been fetched from a real source.
+            // fetchBankBalances() will overwrite these with real data from cloud or local server.
+            if (!loadData('balance_init_v1')) {
+                const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
+                if (checking && checking.balance === 0) {
+                    checking.balance = 856.60;
+                }
+                const savings = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
+                if (savings && savings.balance === 0) {
+                    savings.balance = 57.11;
+                }
+                if (finAccounts.length > 0) {
+                    saveData('fin_accounts', finAccounts);
+                }
+                saveData('balance_init_v1', true);
             }
 
             if (changed) saveData('fin_bills', finBills);
@@ -7441,7 +7443,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8.1 — 2026-03-02</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8.2 — 2026-03-02</div>
 
 </body>
 </html>
