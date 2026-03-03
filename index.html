@@ -2734,6 +2734,32 @@
             </div>
         </div>
 
+        <!-- ===== PAYCHECK CONFIRM — "Every dollar has a job" moment ===== -->
+        <div class="finance-form-overlay" id="paycheck-confirm-overlay" style="display:none;" onclick="closePaycheckConfirm()">
+            <div class="finance-form" style="max-width:340px; text-align:center;" onclick="event.stopPropagation()">
+                <div style="font-size:36px; margin-bottom:6px;">💰</div>
+                <div style="font-size:20px; font-weight:700; color:#d4ccc8; margin-bottom:2px;">Paycheck logged!</div>
+                <div id="pc-amount" style="font-size:14px; color:#9a8a92; margin-bottom:20px;"></div>
+
+                <!-- Split breakdown -->
+                <div id="pc-split" style="text-align:left; background:#1a1216; border-radius:10px; padding:14px; margin-bottom:14px;"></div>
+
+                <!-- Every dollar assigned confirmation -->
+                <div style="font-size:13px; color:#6bbf7b; font-weight:600; margin-bottom:14px; letter-spacing:0.3px;">
+                    ✓ Every dollar has a job
+                </div>
+
+                <!-- New Safe to Spend -->
+                <div style="background:#1a1216; border-radius:10px; padding:14px; margin-bottom:20px;">
+                    <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Safe to Spend</div>
+                    <div id="pc-safe-to-spend" style="font-size:32px; font-weight:700;">$—</div>
+                    <div id="pc-safe-sub" style="font-size:11px; color:#6b5660; margin-top:2px;"></div>
+                </div>
+
+                <button class="finance-btn-save" onclick="closePaycheckConfirm()" style="width:100%; font-size:15px; padding:12px;">Got it 👍</button>
+            </div>
+        </div>
+
     </div><!-- /grid money -->
     </div><!-- /tab-money -->
 
@@ -4619,6 +4645,67 @@
             if (isNaN(val) || val < 0) { alert('Enter a dollar amount. Enter 0 if nothing pending.'); return; }
             saveData('manual_pending', val.toString());
             renderBrain();
+        }
+
+        // --- PAYCHECK CONFIRM — show the "every dollar has a job" moment ---
+        function showPaycheckConfirm(amount, split) {
+            const overlay = document.getElementById('paycheck-confirm-overlay');
+            if (!overlay) return;
+
+            // Amount header
+            const amtEl = document.getElementById('pc-amount');
+            if (amtEl) amtEl.textContent = fmt$(amount) + ' received';
+
+            // Split breakdown
+            const splitEl = document.getElementById('pc-split');
+            if (splitEl) {
+                let rows = '';
+                const items = [
+                    { emoji: '🔴', label: 'Fixed (bills)',  val: split.fixed,    color: '#d4849a' },
+                    { emoji: '🟢', label: 'Safety',         val: split.safety,   color: '#b48db5' },
+                    { emoji: '🟡', label: 'Life',           val: split.life,     color: '#e8b84b' },
+                    { emoji: '🟣', label: 'Dopamine',       val: split.dopamine, color: '#BA55D3' },
+                ];
+                items.forEach(item => {
+                    rows += '<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:13px;">'
+                          + '<span style="color:' + item.color + ';">' + item.emoji + ' ' + item.label + '</span>'
+                          + '<span style="color:#d4ccc8; font-weight:600;">' + fmt$(item.val) + '</span>'
+                          + '</div>';
+                });
+                if (split.cash > 0) {
+                    rows += '<div style="display:flex; justify-content:space-between; padding:5px 0 0; font-size:12px; color:#9a8a92; border-top:1px solid #2a1e24; margin-top:4px;">'
+                          + '<span>💵 Cash to pull out</span>'
+                          + '<span>' + fmt$(split.cash) + '</span>'
+                          + '</div>';
+                }
+                if (split.shortfall > 0) {
+                    rows += '<div style="color:#d4849a; font-size:12px; margin-top:8px;">⚠ Short ' + fmt$(split.shortfall) + ' — Life + Dopamine reduced</div>';
+                }
+                splitEl.innerHTML = rows;
+            }
+
+            // Safe to Spend — read from Brain after render (renderFinance was already called)
+            const brainSTS = document.getElementById('brain-sts');
+            const stsEl    = document.getElementById('pc-safe-to-spend');
+            const stsSubEl = document.getElementById('pc-safe-sub');
+            if (brainSTS && stsEl) {
+                const stsText = brainSTS.textContent;
+                stsEl.textContent = stsText;
+                // Mirror the color from Brain
+                const cls = brainSTS.className;
+                stsEl.style.color = cls.includes('negative') ? '#d4849a' : cls.includes('tight') ? '#e8b84b' : '#6bbf7b';
+            }
+            if (stsSubEl) {
+                const brainSub = document.getElementById('brain-sts-sub');
+                stsSubEl.textContent = brainSub ? brainSub.textContent : '';
+            }
+
+            overlay.style.display = 'flex';
+        }
+
+        function closePaycheckConfirm() {
+            const overlay = document.getElementById('paycheck-confirm-overlay');
+            if (overlay) overlay.style.display = 'none';
         }
 
         function editSinkingFund(id) {
@@ -7045,7 +7132,8 @@
                 renderFinance();
                 renderStove();
                 renderBuckets();
-                showToast('Paycheck logged! Cash reminder: pull $' + split.cash.toFixed(0) + ' for emergency stash + squirrel fund');
+                renderBrain(); // update brain BEFORE reading its values for confirm screen
+                showPaycheckConfirm(amount, split);
                 return;
 
             } else if (currentFormType === 'bucket_settings') {
@@ -7488,7 +7576,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.0 — 2026-03-03</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.1 — 2026-03-03</div>
 
 </body>
 </html>
