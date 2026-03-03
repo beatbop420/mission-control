@@ -2432,6 +2432,12 @@
                         <div class="brain-sts-sub" id="brain-sts-sub">loading...</div>
                     </div>
 
+                    <!-- Manual pending ACH — for transfers SimpleFIN can't see -->
+                    <div style="text-align:center; margin-top:-4px; margin-bottom:14px;">
+                        <span style="font-size:12px; color:#6b5660;">Known ACH/checks not in bank yet: </span>
+                        <span id="brain-manual-pending-val" style="font-size:12px; color:#6b5660; cursor:pointer; text-decoration:underline dotted;" onclick="setManualPending()">tap to set</span>
+                    </div>
+
                     <!-- Bills due in next 14 days -->
                     <div class="brain-section-label">Bills Next 14 Days</div>
                     <div id="brain-bills-list">
@@ -4416,6 +4422,18 @@
             // Get checking balance from accounts
             const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
             const balance = checking ? checking.balance : 0;
+            // Manual pending: ACH/checks that SimpleFIN can't see (e.g. lawyer retainer)
+            const manualPending = parseFloat(loadData('manual_pending') || '0');
+            const mpEl = document.getElementById('brain-manual-pending-val');
+            if (mpEl) {
+                if (manualPending > 0) {
+                    mpEl.textContent = '-' + fmt$(manualPending) + ' (tap to update)';
+                    mpEl.style.color = '#d4849a';
+                } else {
+                    mpEl.textContent = 'none (tap to set)';
+                    mpEl.style.color = '#6b5660';
+                }
+            }
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -4449,7 +4467,7 @@
 
             const upcoming14 = [];
             finBills.forEach(b => {
-                if (b.status !== 'unpaid') return;
+                if (b.status === 'processed') return; // pending = already paid, still deduct
                 if (!b.dueDate) return;
                 const raw = new Date(b.dueDate + 'T00:00:00');
                 let projected = raw;
@@ -4474,7 +4492,8 @@
             const totalBeforePayday = billsBeforePayday.reduce((sum, b) => sum + (b.amount || 0), 0);
 
             // ─── SAFE TO SPEND ──────────────────────────────────────────────
-            const safeToSpend = balance - totalBeforePayday;
+            // balance − bills due before paycheck (unpaid + pending) − known ACH not in SimpleFIN
+            const safeToSpend = balance - totalBeforePayday - manualPending;
 
             const stsEl  = document.getElementById('brain-sts');
             const stsSub = document.getElementById('brain-sts-sub');
@@ -4488,8 +4507,10 @@
                     ? nextPayday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : 'next paycheck';
                 const syncNote = lastFetch ? ' · synced ' + lastFetch : '';
-                stsSub.textContent = 'checking ' + fmt$(balance) + ' − '
-                    + fmt$(totalBeforePayday) + ' bills due by ' + paydayStr + syncNote;
+                let subText = 'checking ' + fmt$(balance) + ' − ' + fmt$(totalBeforePayday) + ' bills due by ' + paydayStr;
+                if (manualPending > 0) subText += ' − ' + fmt$(manualPending) + ' ACH out';
+                subText += syncNote;
+                stsSub.textContent = subText;
             }
 
             // ─── BILLS LIST ─────────────────────────────────────────────────
@@ -4500,18 +4521,25 @@
                 } else {
                     let html = '';
                     upcoming14.forEach(b => {
-                        const p        = getBillPriority(b);
-                        const dateStr  = b._projected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                        const isOverdue = b._projected < today;
-                        const isSoon   = !isOverdue && (b._projected - today) / 864e5 <= 2;
-                        const dueLbl   = isOverdue ? '🔴 OVERDUE' : (isSoon ? '⚡ ' + dateStr : dateStr);
+                        const p         = getBillPriority(b);
+                        const isPending = b.status === 'pending';
+                        const dateStr   = b._projected.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const isOverdue = !isPending && b._projected < today;
+                        const isSoon    = !isPending && !isOverdue && (b._projected - today) / 864e5 <= 2;
+                        const dueLbl    = isPending  ? '⏳ paid · waiting on bank'
+                                        : isOverdue  ? '🔴 OVERDUE'
+                                        : isSoon     ? '⚡ ' + dateStr
+                                        : dateStr;
+                        const nameColor  = isPending ? '#9a8a92' : '#d4ccc8';
+                        const amtColor   = isPending ? '#9a8a92' : '#d4ccc8';
+                        const rowOpacity = isPending ? ' style="opacity:0.6;"' : '';
 
-                        html += '<div class="brain-bill-row ' + p + '">';
+                        html += '<div class="brain-bill-row ' + p + '"' + rowOpacity + '>';
                         html += '<div>';
-                        html += '<span style="color:#d4ccc8; font-weight:500;">' + b.name + '</span>';
+                        html += '<span style="color:' + nameColor + '; font-weight:500;">' + b.name + '</span>';
                         html += '<span style="font-size:11px; color:#6b5660; margin-left:8px;">' + dueLbl + '</span>';
                         html += '</div>';
-                        html += '<span style="font-weight:600; color:#d4ccc8;">' + fmt$(b.amount) + '</span>';
+                        html += '<span style="font-weight:600; color:' + amtColor + ';">' + fmt$(b.amount) + '</span>';
                         html += '</div>';
                     });
                     billsEl.innerHTML = html;
@@ -4576,6 +4604,23 @@
         }
 
         // Tap the amount on a sinking fund to update its balance
+        // --- SET MANUAL PENDING ACH ---
+        // For ACH transfers / checks SimpleFIN can't see yet (e.g. lawyer retainer check)
+        function setManualPending() {
+            const current = parseFloat(loadData('manual_pending') || '0');
+            const input = prompt(
+                'How much have you sent out that hasn\'t cleared the bank yet?\n' +
+                '(ACH transfers, checks, payments SimpleFIN doesn\'t know about)\n\n' +
+                'Enter 0 when everything has cleared.',
+                current.toFixed(2)
+            );
+            if (input === null) return;
+            const val = parseFloat(input);
+            if (isNaN(val) || val < 0) { alert('Enter a dollar amount. Enter 0 if nothing pending.'); return; }
+            saveData('manual_pending', val.toString());
+            renderBrain();
+        }
+
         function editSinkingFund(id) {
             const fund = sinkingFunds.find(f => f.id === id);
             if (!fund) return;
@@ -7443,7 +7488,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.8.3 — 2026-03-02</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.0 — 2026-03-03</div>
 
 </body>
 </html>

@@ -2,7 +2,7 @@
 // Think of it like a little helper that sits between your app and the internet.
 // It saves copies of your files so the app loads even with no wifi.
 
-const CACHE_NAME = 'mission-control-v18';
+const CACHE_NAME = 'mission-control-v19';
 
 // Figure out where the app lives (works on both GitHub Pages and custom domains)
 // On GitHub Pages: /mission-control/  |  On custom domain: /
