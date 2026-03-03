@@ -3128,7 +3128,27 @@
             const payday = document.getElementById('rn-payday');
 
             if (typeof buckets !== 'undefined') {
-                spendable.textContent = '$' + (buckets.life.balance || 0).toFixed(0);
+                // Safe to Spend — same formula as Brain tab (not just Life bucket)
+                // balance − bills due before paycheck (unpaid+pending) − manual ACH out
+                const rnChecking  = finAccounts ? finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking'))) : null;
+                const rnBalance   = rnChecking ? (rnChecking.balance || 0) : 0;
+                const rnManualAch = parseFloat(loadData('manual_pending') || '0');
+                const rnToday     = new Date(); rnToday.setHours(0,0,0,0);
+                const rnPayday    = (typeof bucketSettings !== 'undefined' && bucketSettings.nextPayday)
+                                    ? new Date(bucketSettings.nextPayday + 'T00:00:00') : null;
+                const rnBillsTotal = (finBills || []).filter(b => {
+                    if (b.status === 'processed') return false;
+                    if (!b.dueDate) return false;
+                    const raw = new Date(b.dueDate + 'T00:00:00');
+                    let proj = raw;
+                    if (b.recurring) {
+                        proj = new Date(rnToday.getFullYear(), rnToday.getMonth(), raw.getDate());
+                        if (proj < rnToday) proj.setMonth(proj.getMonth() + 1);
+                    }
+                    return rnPayday ? proj <= rnPayday : true;
+                }).reduce((s, b) => s + (b.amount || 0), 0);
+                const rnSTS = rnBalance - rnBillsTotal - rnManualAch;
+                spendable.textContent = fmt$(Math.round(rnSTS));
                 dopamine.textContent = '$' + (buckets.dopamine.balance || 0).toFixed(0);
             }
             if (typeof bucketSettings !== 'undefined' && bucketSettings.nextPayday) {
@@ -7576,7 +7596,7 @@
     </script>
 
     <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.1 — 2026-03-03</div>
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.2 — 2026-03-03</div>
 
 </body>
 </html>
