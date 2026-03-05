@@ -1,0 +1,30 @@
+# ===== SECRETS — never commit these =====
+.env
+.env.*
+*.env
+secrets.*
+*secrets*
+
+# SimpleFIN access URL (has credentials embedded)
+.simplefin-access
+simplefin-access*
+
+# Local server cache files
+.bank-cache.json
+.simplefin-data.json
+.simplefin-full.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
