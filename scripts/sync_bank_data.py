@@ -16,6 +16,7 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 # ── Read environment variables ──────────────────────────────────────────────
 SIMPLEFIN_URL     = os.environ.get('SIMPLEFIN_ACCESS_URL', '').strip()
@@ -90,15 +91,8 @@ for acc in raw.get('accounts', []):
 # ── Build the final payload ───────────────────────────────────────────────────
 now = datetime.now(timezone.utc)
 
-# Human-readable timestamp in Central Time (no pytz needed — just offset)
-# CT is UTC-6 (CST) or UTC-5 (CDT) — approximate with -6 for reliability
-ct_hour   = (now.hour - 6) % 24
-ct_ampm   = 'AM' if ct_hour < 12 else 'PM'
-ct_hour12 = ct_hour % 12 or 12
-ct_min    = now.strftime('%M')
-ct_day    = now.day
-
-fetched_at_human = f"{now.strftime('%b')} {ct_day} {ct_hour12}:{ct_min} {ct_ampm} CT"
+central_now = now.astimezone(ZoneInfo('America/Chicago'))
+fetched_at_human = central_now.strftime('%b %-d %-I:%M %p CT')
 
 data = {
     'accounts':          accounts,

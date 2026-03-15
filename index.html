@@ -622,6 +622,83 @@
             color: #d4849a;
         }
 
+        .bank-snapshot {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin: 10px 0 14px 0;
+        }
+
+        .bank-snapshot-card {
+            background: linear-gradient(180deg, rgba(26,18,22,0.95), rgba(36,25,30,0.95));
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+        }
+
+        .bank-snapshot-label {
+            font-size: 10px;
+            color: #9a8a92;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .bank-snapshot-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f0eae8;
+            letter-spacing: -0.02em;
+        }
+
+        .bank-snapshot-note {
+            font-size: 11px;
+            color: #6b5660;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .bank-snapshot-intro {
+            background: rgba(180,141,181,0.08);
+            border: 1px solid rgba(180,141,181,0.18);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin: 8px 0 12px 0;
+            font-size: 12px;
+            color: #d4ccc8;
+            line-height: 1.5;
+        }
+
+        .bank-snapshot-intro strong {
+            color: #f0e6ea;
+            font-weight: 600;
+        }
+
+        .bank-snapshot-card.available-card {
+            border-color: rgba(180,141,181,0.22);
+        }
+
+        .bank-snapshot-card.posted-card {
+            border-color: rgba(255,255,255,0.08);
+        }
+
+        .bank-snapshot-card.pending-card {
+            border-color: rgba(232,184,75,0.22);
+        }
+
+        .bank-snapshot-card.manual-card {
+            border-color: rgba(212,132,154,0.22);
+        }
+
+        .bank-snapshot-value.pending-value {
+            color: #e8b84b;
+        }
+
+        .bank-snapshot-value.manual-value {
+            color: #d4849a;
+        }
+
         /* Orange/warning color for unpaid bills total */
         .finance-summary-box .fs-value.bills-due {
             color: #e8b84b;
@@ -1101,6 +1178,24 @@
         .finance-btn-sm:hover {
             border-color: #d4849a;
             color: #d4849a;
+        }
+
+        .inline-refresh-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #9a8a92;
+            padding: 4px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: 'Lexend', sans-serif;
+            transition: all 0.15s;
+        }
+
+        .inline-refresh-btn:hover {
+            border-color: #d4849a;
+            color: #f0e6ea;
+            background: rgba(212,132,154,0.08);
         }
 
         /* The "add new" button at the bottom of each panel */
@@ -2042,7 +2137,10 @@
 
         <!-- -------- WEATHER + PRESSURE -------- -->
         <div class="card">
-            <h2>Weather + Pressure <span class="location-label">📍 Lincoln, Nebraska</span></h2>
+            <h2 style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span>Weather + Pressure <span class="location-label">📍 Lincoln, Nebraska</span></span>
+                <button class="inline-refresh-btn" onclick="refreshWeatherData()">Refresh Weather</button>
+            </h2>
             <div id="weather-loading">Loading weather data...</div>
             <div id="weather-content" style="display:none;">
                 <div class="weather-main">
@@ -2385,7 +2483,7 @@
                 <!-- Summary bar with more detail -->
                 <div class="finance-summary" style="margin-top: 14px;">
                     <div class="finance-summary-box">
-                        <div class="fs-label">Checking</div>
+                        <div class="fs-label">Checking Avail</div>
                         <div class="fs-value" id="fin-checking-balance">$0.00</div>
                     </div>
                     <div class="finance-summary-box">
@@ -2397,6 +2495,9 @@
                         <div class="fs-value" id="fin-spendable-detail">$0.00</div>
                     </div>
                 </div>
+
+                <div class="bank-snapshot-intro" id="bank-balance-intro"></div>
+                <div class="bank-snapshot" id="bank-balance-strip"></div>
 
                 <!-- Overdue warning — only shows if something is past due -->
                 <div class="alert-row level-red" id="fin-overdue-alert" style="display:none;">
@@ -2465,6 +2566,8 @@
                     <!-- Sync note + manual pending ACH -->
                     <div style="text-align:center; margin-top:8px;">
                         <span id="mc-sync-note" style="font-size:11px; color:#6b5660;"></span>
+                        <span style="font-size:11px; color:#3d2f35;"> · </span>
+                        <button class="inline-refresh-btn" onclick="refreshBankData()" style="padding:3px 9px;">Refresh Bank</button>
                         <span style="font-size:11px; color:#3d2f35;"> · </span>
                         <span id="brain-manual-pending-val" style="font-size:11px; color:#6b5660; cursor:pointer; text-decoration:underline dotted;" onclick="setManualPending()">pending ACH: tap to set</span>
                     </div>
@@ -3239,6 +3342,14 @@
                 });
         }
 
+        function refreshWeatherData() {
+            document.getElementById('weather-loading').textContent = 'Refreshing weather...';
+            document.getElementById('pollen-loading').textContent = 'Refreshing air quality...';
+            getWeather();
+            getPollen();
+            showToast('Refreshing weather');
+        }
+
         // ========== POLLEN + AIR QUALITY FETCH ==========
         function getPollen() {
             const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=pm2_5,pm10,grass_pollen,birch_pollen,ragweed_pollen,mugwort_pollen,alder_pollen&timezone=auto`;
@@ -3802,6 +3913,7 @@
                     'fin_accounts', 'fin_bills', 'fin_income', 'fin_transactions',
                     'fin_debts', 'fin_emergency', 'fin_spending',
                     'buckets', 'bucket_settings', 'paycheck_log',
+                    'manual_pending', 'sinking_funds',
                     'cycle_entries', 'kid_logs', 'timestamps', 'symptom_log',
                     'checkboxes', 'text_areas',
                     'last_auto_run', 'last_bill_reset_month', 'last_checkbox_reset',
@@ -3939,6 +4051,7 @@
             renderDebts();
             renderBudgetOverview();
             renderSpending();
+            renderBankSnapshot();
             syncBucketsToAccounts();
             updateFinanceSummary();
             renderStove();
@@ -3956,10 +4069,10 @@
                 <div class="finance-row">
                     <div class="fr-left">
                         <span class="fr-name">${a.name}</span>
-                        <span class="fr-detail">${a.type || 'Account'}</span>
+                        <span class="fr-detail">${getAccountDetailText(a)}</span>
                     </div>
                     <div class="fr-right">
-                        <span class="fr-amount ${a.balance >= 0 ? 'positive' : 'outgoing'}">$${Math.abs(a.balance).toFixed(2)}</span>
+                        <span class="fr-amount ${getDisplayBalance(a) >= 0 ? 'positive' : 'outgoing'}">$${Math.abs(getDisplayBalance(a)).toFixed(2)}</span>
                         <button class="finance-btn-sm" onclick="editFinanceItem('account','${a.id}')">edit</button>
                         <button class="finance-btn-sm" onclick="deleteFinanceItem('account','${a.id}')">x</button>
                     </div>
@@ -4275,9 +4388,76 @@
         // ================================================================
 
         // Get the checking account balance (one source of truth)
+        function getAccountByType(type) {
+            return finAccounts.find(a => a.type === type || (a.name && a.name.toLowerCase().includes(type.toLowerCase())));
+        }
+
+        function getDisplayBalance(account) {
+            if (!account) return 0;
+            if (typeof account.availableBalance === 'number') return account.availableBalance;
+            return account.balance || 0;
+        }
+
         function getCheckingBalance() {
-            const checking = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-            return checking ? checking.balance : 0;
+            return getDisplayBalance(getAccountByType('Checking'));
+        }
+
+        function getAccountDetailText(account) {
+            const base = account.type || 'Account';
+            if (typeof account.availableBalance !== 'number' && typeof account.postedBalance !== 'number') {
+                return base;
+            }
+
+            const parts = [base];
+            if (typeof account.availableBalance === 'number') parts.push('avail ' + fmt$(account.availableBalance));
+            if (typeof account.postedBalance === 'number') parts.push('posted ' + fmt$(account.postedBalance));
+            if (typeof account.pendingTotal === 'number' && Math.abs(account.pendingTotal) > 0.009) parts.push('pending ' + fmt$(account.pendingTotal));
+            return parts.join(' · ');
+        }
+
+        function renderBankSnapshot() {
+            const wrap = document.getElementById('bank-balance-strip');
+            const intro = document.getElementById('bank-balance-intro');
+            if (!wrap) return;
+
+            const checking = getAccountByType('Checking');
+            if (!checking || typeof checking.availableBalance !== 'number') {
+                if (intro) intro.textContent = 'Bank details will show up here after the SimpleFIN feed loads.';
+                wrap.innerHTML = '<div class="bank-snapshot-card" style="grid-column:1 / -1;"><div class="bank-snapshot-note">Bank feed will show posted, available, and pending here once SimpleFIN data loads.</div></div>';
+                return;
+            }
+
+            const posted = typeof checking.postedBalance === 'number' ? checking.postedBalance : getDisplayBalance(checking);
+            const available = getDisplayBalance(checking);
+            const pending = typeof checking.pendingTotal === 'number' ? checking.pendingTotal : 0;
+            const pendingCount = checking.pendingCount || 0;
+            const manualPending = parseFloat(loadData('manual_pending') || '0');
+
+            if (intro) {
+                intro.innerHTML = '<strong>Quick decode:</strong> available is what the app is using right now, posted is the older settled number, and pending is card stuff still in motion. Manual ACH is the extra “I know this money is already spoken for” box.';
+            }
+
+            wrap.innerHTML =
+                '<div class="bank-snapshot-card available-card">'
+              +   '<div class="bank-snapshot-label">Using Right Now</div>'
+              +   '<div class="bank-snapshot-value">' + fmt$(available) + '</div>'
+              +   '<div class="bank-snapshot-note">SimpleFIN available balance. This is the checking number the dashboard is using.</div>'
+              + '</div>'
+              + '<div class="bank-snapshot-card posted-card">'
+              +   '<div class="bank-snapshot-label">Settled / Posted</div>'
+              +   '<div class="bank-snapshot-value">' + fmt$(posted) + '</div>'
+              +   '<div class="bank-snapshot-note">Older completed transactions only. Think of this as the fully-settled number.</div>'
+              + '</div>'
+              + '<div class="bank-snapshot-card pending-card">'
+              +   '<div class="bank-snapshot-label">Card Pending</div>'
+              +   '<div class="bank-snapshot-value pending-value">' + fmt$(pending) + '</div>'
+              +   '<div class="bank-snapshot-note">' + pendingCount + ' pending card transaction' + (pendingCount === 1 ? '' : 's') + ' that SimpleFIN can see.</div>'
+              + '</div>'
+              + '<div class="bank-snapshot-card manual-card">'
+              +   '<div class="bank-snapshot-label">Manual ACH</div>'
+              +   '<div class="bank-snapshot-value manual-value">' + fmt$(manualPending) + '</div>'
+              +   '<div class="bank-snapshot-note">Checks, ACH, or transfers you know are already going out even if the feed has not caught up yet.</div>'
+              + '</div>';
         }
 
         // Get next payday date object (or null)
@@ -4352,7 +4532,7 @@
             if (!container) return;
 
             const balance = getCheckingBalance();
-            const lastFetch = loadData('bank_last_fetch');
+            const lastFetch = loadData('bank_last_fetch_label');
             normalizeBillStatuses();
 
             const nextPayday = getNextPayday();
@@ -4515,7 +4695,7 @@
             const savingsAcct = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
             const savingsBalance = savingsAcct ? (savingsAcct.balance || 0) : 0;
             const manualPending = parseFloat(loadData('manual_pending') || '0');
-            const lastFetch = loadData('bank_last_fetch');
+            const lastFetch = loadData('bank_last_fetch_label');
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -7076,15 +7256,52 @@
             // Update account balances
             data.accounts.forEach(bankAccount => {
                 const name = bankAccount.name.toLowerCase();
-                // Use SimpleFIN's available-balance (posted + card pending) as the balance
-                const realBalance = bankAccount.available || bankAccount.balance;
+                const postedBalance = typeof bankAccount.balance === 'number' ? bankAccount.balance : parseFloat(bankAccount.balance || 0);
+                const availableBalance = bankAccount.available != null ? parseFloat(bankAccount.available) : postedBalance;
+                const pendingTotal = bankAccount.pending_total != null ? parseFloat(bankAccount.pending_total) : 0;
+                const pendingCount = bankAccount.pending_count || 0;
+                const balanceDate = bankAccount.balance_date || '';
+
+                // Keep the old .balance field for backwards compatibility,
+                // but preserve the raw SimpleFIN pieces separately.
+                const realBalance = availableBalance;
                 if (name.includes('checking')) {
-                    const acc = finAccounts.find(a => a.type === 'Checking' || (a.name && a.name.toLowerCase().includes('checking')));
-                    if (acc && acc.balance !== realBalance) { acc.balance = realBalance; updated = true; }
+                    const acc = getAccountByType('Checking');
+                    if (acc && (
+                        acc.balance !== realBalance ||
+                        acc.postedBalance !== postedBalance ||
+                        acc.availableBalance !== availableBalance ||
+                        acc.pendingTotal !== pendingTotal ||
+                        acc.pendingCount !== pendingCount ||
+                        acc.balanceDate !== balanceDate
+                    )) {
+                        acc.balance = realBalance;
+                        acc.postedBalance = postedBalance;
+                        acc.availableBalance = availableBalance;
+                        acc.pendingTotal = pendingTotal;
+                        acc.pendingCount = pendingCount;
+                        acc.balanceDate = balanceDate;
+                        updated = true;
+                    }
                 }
                 if (name.includes('saving')) {
-                    const acc = finAccounts.find(a => a.type === 'Savings' || (a.name && a.name.toLowerCase().includes('saving')));
-                    if (acc && acc.balance !== realBalance) { acc.balance = realBalance; updated = true; }
+                    const acc = getAccountByType('Savings');
+                    if (acc && (
+                        acc.balance !== realBalance ||
+                        acc.postedBalance !== postedBalance ||
+                        acc.availableBalance !== availableBalance ||
+                        acc.pendingTotal !== pendingTotal ||
+                        acc.pendingCount !== pendingCount ||
+                        acc.balanceDate !== balanceDate
+                    )) {
+                        acc.balance = realBalance;
+                        acc.postedBalance = postedBalance;
+                        acc.availableBalance = availableBalance;
+                        acc.pendingTotal = pendingTotal;
+                        acc.pendingCount = pendingCount;
+                        acc.balanceDate = balanceDate;
+                        updated = true;
+                    }
                 }
             });
 
@@ -7092,16 +7309,18 @@
             const allTxns = [];
             data.accounts.forEach(a => { if (a.transactions) allTxns.push(...a.transactions); });
             if (allTxns.length > 0) {
+                const remainingTxns = [...allTxns];
                 const pendingBills = finBills.filter(b => b.status === 'pending');
                 pendingBills.forEach(bill => {
                     const matchAmt = bill.paidAmount || bill.amount;
-                    const match = allTxns.find(txn => {
+                    const matchIndex = remainingTxns.findIndex(txn => {
                         if (Math.abs(txn.amount - matchAmt) > 0.02) return false;
                         if (bill.paidDate && txn.date) return txn.date >= bill.paidDate;
                         return true;
                     });
-                    if (match) {
+                    if (matchIndex !== -1) {
                         bill.status = 'processed';
+                        remainingTxns.splice(matchIndex, 1);
                         updated = true;
                         showToast('✓ ' + bill.name + ' confirmed in bank');
                     }
@@ -7109,8 +7328,10 @@
             }
 
             // Always save the fetch timestamp so we can show staleness
-            const fetchLabel = data.fetched_at_human || data.fetched_at || new Date().toISOString();
-            saveData('bank_last_fetch', fetchLabel);
+            const fetchIso = data.fetched_at || new Date().toISOString();
+            const fetchLabel = data.fetched_at_human || new Date(fetchIso).toLocaleString();
+            saveData('bank_last_fetch_iso', fetchIso);
+            saveData('bank_last_fetch_label', fetchLabel);
             saveData('bank_data_source', source || 'unknown');
 
             if (updated) {
@@ -7122,7 +7343,8 @@
 
         // --- FETCH BANK BALANCES ---
         // Priority: 1) Local Python server  2) GitHub Actions cloud sync (Supabase)  3) stale warning
-        async function fetchBankBalances() {
+        async function fetchBankBalances(manual = false) {
+            if (manual) setStatus('info', 'Refreshing bank data...');
             // ── 1. Try local server (PC only, freshest data) ─────────────────
             try {
                 const response = await fetch('/balances', { signal: AbortSignal.timeout(3000) });
@@ -7131,6 +7353,7 @@
                     if (!data.error && data.accounts && data.accounts.length > 0) {
                         applyBankData(data, 'local');
                         console.log('BANK: Updated from local server');
+                        if (manual) setStatus('ok', 'Bank data refreshed from PC server.', true);
                         return;  // got fresh data, done
                     }
                 }
@@ -7152,6 +7375,10 @@
                         ? Math.round((Date.now() - new Date(row.fetched_at).getTime()) / 3600000)
                         : null;
                     console.log('BANK: Updated from cloud cache' + (hrs !== null ? ' (' + hrs + 'h old)' : ''));
+                    if (manual) {
+                        const ageText = hrs !== null ? (hrs === 0 ? 'just now' : hrs + 'h old') : 'from cloud cache';
+                        setStatus('ok', 'Bank data refreshed (' + ageText + ').', true);
+                    }
                     // Only show a status message if data is getting stale
                     if (hrs !== null && hrs >= 8) {
                         setStatus('info', 'Bank data from ' + (row.data.fetched_at_human || hrs + 'h ago') + ' (cloud auto-sync)');
@@ -7163,17 +7390,21 @@
             }
 
             // ── 3. Neither source available — show staleness warning ─────────
-            const lastFetch = loadData('bank_last_fetch');
+            const lastFetch = loadData('bank_last_fetch_iso');
             if (lastFetch) {
                 const hrs = Math.round((Date.now() - new Date(lastFetch).getTime()) / 3600000);
                 if (hrs >= 6) {
                     const src = loadData('bank_data_source') === 'cloud' ? 'cloud sync' : 'PC server';
                     setStatus('info', 'Bank data ' + hrs + 'h old (last from ' + src + ') — will refresh when online');
                 }
+            } else if (manual) {
+                setStatus('error', 'Could not refresh bank data right now.');
             }
         }
-        // Run once on page load
-        fetchBankBalances();
+
+        function refreshBankData() {
+            fetchBankBalances(true);
+        }
 
         // --- Add paycheck/bucket form handlers to the existing saveFinanceForm ---
         // We need to hook into the existing save function
@@ -7472,9 +7703,9 @@
             runBillMigrations();
             runAutomations();
 
+            await fetchBankBalances();
             getWeather();
             getPollen();
-            setInterval(() => { getWeather(); getPollen(); }, 30 * 60 * 1000);
 
             renderCycleTracker();
             renderKidTracker();
