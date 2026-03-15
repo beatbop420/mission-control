@@ -2480,14 +2480,20 @@
             <!-- Finance management system (always visible — has its own tab now) -->
             <div id="finance-expanded" style="display:block;">
 
+                <!-- Claudette first — emotional regulation before numbers -->
+                <div id="mc-greeting" style="background:linear-gradient(135deg,#251c21,#2e2228); border-radius:14px; padding:20px 22px; margin:14px 0 16px 0; border-left:4px solid #e8b84b;">
+                    <div id="mc-greeting-text" style="font-size:17px; color:#f0eae8; line-height:1.6; font-weight:500;">loading...</div>
+                    <div id="mc-status-line" style="font-size:13px; color:#9a8a92; margin-top:6px;"></div>
+                </div>
+
                 <!-- Summary bar with more detail -->
                 <div class="finance-summary" style="margin-top: 14px;">
                     <div class="finance-summary-box">
-                        <div class="fs-label">Checking Avail</div>
+                        <div class="fs-label">Bank Says</div>
                         <div class="fs-value" id="fin-checking-balance">$0.00</div>
                     </div>
                     <div class="finance-summary-box">
-                        <div class="fs-label">Unpaid Bills</div>
+                        <div class="fs-label">Still Coming Up</div>
                         <div class="fs-value bills-due" id="fin-unpaid-bills">$0.00</div>
                     </div>
                     <div class="finance-summary-box">
@@ -2526,12 +2532,6 @@
 
                 <!-- ===== FINANCE BRAIN — Miss Claudette morning briefing ===== -->
                 <div class="finance-panel active" id="fin-panel-brain">
-
-                    <!-- The greeting — warm, Miss Claudette energy -->
-                    <div id="mc-greeting" style="background:linear-gradient(135deg,#251c21,#2e2228); border-radius:14px; padding:20px 22px; margin-bottom:16px; border-left:4px solid #e8b84b;">
-                        <div id="mc-greeting-text" style="font-size:17px; color:#f0eae8; line-height:1.6; font-weight:500;">loading...</div>
-                        <div id="mc-status-line" style="font-size:13px; color:#9a8a92; margin-top:6px;"></div>
-                    </div>
 
                     <!-- Checking + Savings balances -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
@@ -4434,29 +4434,29 @@
             const manualPending = parseFloat(loadData('manual_pending') || '0');
 
             if (intro) {
-                intro.innerHTML = '<strong>Quick decode:</strong> available is what the app is using right now, posted is the older settled number, and pending is card stuff still in motion. Manual ACH is the extra “I know this money is already spoken for” box.';
+                intro.innerHTML = '<strong>Quick decode:</strong> the first number is what the app is currently going by. The others explain why your bank app may look different, without making you do mental gymnastics.';
             }
 
             wrap.innerHTML =
                 '<div class="bank-snapshot-card available-card">'
-              +   '<div class="bank-snapshot-label">Using Right Now</div>'
+              +   '<div class="bank-snapshot-label">What The App Is Using</div>'
               +   '<div class="bank-snapshot-value">' + fmt$(available) + '</div>'
-              +   '<div class="bank-snapshot-note">SimpleFIN available balance. This is the checking number the dashboard is using.</div>'
+              +   '<div class="bank-snapshot-note">This is the checking number Mission Control is using right now.</div>'
               + '</div>'
               + '<div class="bank-snapshot-card posted-card">'
-              +   '<div class="bank-snapshot-label">Settled / Posted</div>'
+              +   '<div class="bank-snapshot-label">Older Settled Number</div>'
               +   '<div class="bank-snapshot-value">' + fmt$(posted) + '</div>'
-              +   '<div class="bank-snapshot-note">Older completed transactions only. Think of this as the fully-settled number.</div>'
+              +   '<div class="bank-snapshot-note">This is the older fully-posted number before newer in-between stuff finishes moving.</div>'
               + '</div>'
               + '<div class="bank-snapshot-card pending-card">'
-              +   '<div class="bank-snapshot-label">Card Pending</div>'
+              +   '<div class="bank-snapshot-label">Card Stuff In Motion</div>'
               +   '<div class="bank-snapshot-value pending-value">' + fmt$(pending) + '</div>'
-              +   '<div class="bank-snapshot-note">' + pendingCount + ' pending card transaction' + (pendingCount === 1 ? '' : 's') + ' that SimpleFIN can see.</div>'
+              +   '<div class="bank-snapshot-note">' + pendingCount + ' card charge' + (pendingCount === 1 ? '' : 's') + ' still moving through that SimpleFIN can already see.</div>'
               + '</div>'
               + '<div class="bank-snapshot-card manual-card">'
-              +   '<div class="bank-snapshot-label">Manual ACH</div>'
+              +   '<div class="bank-snapshot-label">Money Already Spoken For</div>'
               +   '<div class="bank-snapshot-value manual-value">' + fmt$(manualPending) + '</div>'
-              +   '<div class="bank-snapshot-note">Checks, ACH, or transfers you know are already going out even if the feed has not caught up yet.</div>'
+              +   '<div class="bank-snapshot-note">Checks, ACH, or transfers you know are already going out even if the bank feed has not caught up yet.</div>'
               + '</div>';
         }
 
