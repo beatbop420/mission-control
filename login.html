@@ -135,8 +135,7 @@
             <button class="btn btn-secondary" onclick="showEmailStep()">Use a different email</button>
         </div>
 
-        <!-- Skip login — use without cloud sync -->
-        <a href="index.html" class="skip">Skip — use without cloud sync</a>
+        <!-- Skip link removed — login required for security -->
     </div>
 
     <script>
@@ -167,6 +166,15 @@
                 return;
             }
 
+            // Only allow the app owner to log in — no random signups
+            const ALLOWED_EMAILS = ['petdevo@gmail.com'];
+            if (!ALLOWED_EMAILS.includes(email.toLowerCase())) {
+                msg.className = 'msg error';
+                msg.textContent = 'This app is private. Access restricted.';
+                btn.disabled = false;
+                return;
+            }
+
             btn.disabled = true;
             btn.textContent = 'Sending...';
             msg.className = 'msg info';
@@ -174,8 +182,10 @@
 
             try {
                 // signInWithOtp WITHOUT a redirectTo sends a 6-digit code instead of a link
+                // shouldCreateUser: false prevents auto-signup for unknown emails
                 const { error } = await supabaseClient.auth.signInWithOtp({
-                    email: email
+                    email: email,
+                    options: { shouldCreateUser: false }
                 });
 
                 if (error) throw error;

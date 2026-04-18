@@ -27,4 +27,23 @@ desktop.ini
 # Editor
 .vscode/
 .idea/
+.claude/
 *.swp
+
+# Linter caches
+.mypy_cache/
+.ruff_cache/
+
+# Internal planning / research notes (local-only)
+ASSISTANT-*.md
+RESEARCH-*.md
+SESSION-HANDOFF.md
+GEMINI_*.md
+dashboard-command-center-progress-*.md
+gemini-assistant/
+
+# Throwaway class dumps
+css_classes.txt
+css_briefing_classes.txt
+js_classes.txt
+js_briefing_classes.txt

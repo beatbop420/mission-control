@@ -16,6 +16,8 @@
     <!-- Supabase — the cloud database that syncs data across all devices -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
+    <!-- Security pod — error capture, RLS probes, health monitoring -->
+    <script src="security-pod.js"></script>
 
     <!-- Lexend font - designed to reduce visual stress and boost reading speed -->
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -2054,6 +2056,8 @@
         }
 
     </style>
+    <!-- Assistant tab — self-contained pod -->
+    <link rel="stylesheet" href="assistant.css">
 </head>
 <body>
 
@@ -2091,6 +2095,10 @@
         <button class="main-tab" onclick="showMainTab('body', this)">Body</button>
         <button class="main-tab" onclick="showMainTab('money', this)">Money</button>
         <button class="main-tab" onclick="showMainTab('life', this)">Life</button>
+        <button class="main-tab" onclick="showMainTab('assistant', this)" id="ast-tab-btn">
+            Assistant
+            <span id="ast-badge" style="display:none; background:#e85d75; color:#fff; font-size:10px; padding:1px 6px; border-radius:8px; margin-left:4px; font-weight:700;"></span>
+        </button>
     </div>
 
     <!-- ====== TAB: RIGHT NOW ====== -->
@@ -2973,9 +2981,6 @@
                     <span class="value">—</span>
                 </div>
                 <textarea class="note-box" rows="2" placeholder="Legal notes..."></textarea>
-                <div style="margin-top: 8px;">
-                    <a href="LEGAL INFO TO COLLECT.html" target="_blank" style="font-size: 12px; color: #d4849a; text-decoration: none; border-bottom: 1px dashed #d4849a;">📋 Legal info checklist</a>
-                </div>
             </div>
         </div>
 
@@ -3007,6 +3012,9 @@
 
     </div><!-- /grid life part 2 -->
     </div><!-- /tab-life-2 -->
+
+    <!-- ====== TAB: ASSISTANT ====== -->
+    <div class="tab-page" id="tab-assistant"></div>
 
     <!-- ====== FLOATING TIMESTAMP BUTTON ====== -->
     <div class="timestamp-float">
@@ -3108,6 +3116,7 @@
 
             // Refresh Right Now data when switching to it
             if (tab === 'rightnow') renderRightNow();
+            if (tab === 'assistant' && window.Assistant) window.Assistant.refresh();
         }
 
         // ========== RIGHT NOW TAB ==========
@@ -3168,7 +3177,7 @@
                 !b.paid && b.name && (b.name.includes('DISCONNECT') || b.name.includes('disconnect'))
             );
             disconnectBills.forEach(b => {
-                alertsDiv.innerHTML += '<div class="rightnow-alert">⚠️ ' + b.name + ' — ' + fmt$(b.amount) + '</div>';
+                alertsDiv.innerHTML += '<div class="rightnow-alert">⚠️ ' + esc(b.name) + ' — ' + fmt$(b.amount) + '</div>';
             });
 
             // Past-due bill warning
@@ -3235,7 +3244,7 @@
             actions.slice(0, 6).forEach(a => {
                 const li = document.createElement('li');
                 li.className = 'rightnow-action';
-                li.innerHTML = '<span class="rightnow-action-icon">' + a.icon + '</span><span class="rightnow-action-text">' + a.text + '</span>';
+                li.innerHTML = '<span class="rightnow-action-icon">' + esc(a.icon) + '</span><span class="rightnow-action-text">' + esc(a.text) + '</span>';
                 if (a.el) {
                     li.onclick = function() {
                         a.el.checked = true;
@@ -3809,13 +3818,32 @@
         // Supabase = cloud database so data syncs across all your devices
         // ========================================================================
 
+        // --- Helper: escape user text so it can't inject HTML/scripts ---
+        // Use this EVERY time user-entered data goes into innerHTML
+        function esc(text) {
+            if (text == null) return '';
+            var d = document.createElement('div');
+            d.textContent = String(text);
+            return d.innerHTML;
+        }
+
         // --- Helper: save data locally AND push to cloud ---
+        // localStorage happens instantly. Cloud sync is debounced — waits 2 seconds
+        // after the LAST save for each key, so rapid typing doesn't spam the database.
+        // Each save also records a timestamp so we can resolve cloud vs local conflicts.
+        var _syncTimers = {};
         function saveData(key, value) {
             // Save locally first (instant, no waiting)
             localStorage.setItem('mc_' + key, JSON.stringify(value));
+            // Record when this key was last changed locally (for conflict resolution)
+            localStorage.setItem('mc_ts_' + key, new Date().toISOString());
 
-            // Then sync to Supabase in the background (don't wait for it)
-            syncToCloud(key, value);
+            // Debounce: cancel any pending sync for this key, start a new 2-second timer
+            if (_syncTimers[key]) clearTimeout(_syncTimers[key]);
+            _syncTimers[key] = setTimeout(function() {
+                delete _syncTimers[key];
+                syncToCloud(key, value);
+            }, 2000);
         }
 
         // --- Push one key to Supabase (runs in background, won't block the page) ---
@@ -3838,12 +3866,15 @@
                 if (error) {
                     console.error('SYNC FAIL:', key, error);
                     setStatus('error', 'Cloud save failed — data stored locally. Will retry when reconnected.');
+                    if (window.SecurityPod) SecurityPod.reportSyncError('up', error.message);
                 } else {
                     console.log('SYNC OK:', key);
+                    if (window.SecurityPod) SecurityPod.reportSyncUp();
                 }
             } catch (err) {
                 console.error('SYNC ERROR:', key, err);
                 setStatus('error', 'Cloud save failed — data stored locally. Will retry when reconnected.');
+                if (window.SecurityPod) SecurityPod.reportSyncError('up', err.message);
             }
         }
 
@@ -3852,6 +3883,29 @@
             const raw = localStorage.getItem('mc_' + key);
             return raw ? JSON.parse(raw) : null;
         }
+
+        // Bridge for pods — lets assistant.js (and future pods) talk to the dashboard
+        window.MissionControl = {
+            getBodyStatus: function() {
+                const el = document.getElementById('rn-body-text');
+                return el ? el.textContent : null;
+            },
+            getSafeToSpend: function() {
+                return loadData('safe_to_spend');
+            },
+            saveData: saveData,
+            loadData: loadData,
+            setBadgeCount: function(tabId, count) {
+                const badge = document.getElementById(tabId + '-badge');
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        };
 
         // --- On startup: pull ALL data from Supabase into localStorage ---
         // This runs once when the page loads so all devices have the latest data
@@ -3866,7 +3920,7 @@
 
                 const { data, error } = await supabaseClient
                     .from('user_data')
-                    .select('key, value')
+                    .select('key, value, updated_at')
                     .eq('user_id', user.id);
 
                 if (error) {
@@ -3880,14 +3934,35 @@
                 }
 
                 console.log('SYNC DOWN: Got', data.length, 'keys from cloud');
-                // Stuff everything from the cloud into localStorage
+                // For each key: only overwrite local if cloud is newer
+                // This prevents offline edits from being silently lost on reconnect
+                var pulled = 0, skipped = 0;
                 data.forEach(row => {
+                    var localTs = localStorage.getItem('mc_ts_' + row.key);
+                    var cloudTs = row.updated_at;
+                    // If local has a newer timestamp, keep local version (it'll sync up later)
+                    // If either timestamp is missing, cloud wins (safe default — cloud is shared state)
+                    if (localTs && cloudTs && new Date(localTs) > new Date(cloudTs)) {
+                        console.log('SYNC DOWN SKIP:', row.key, '(local is newer)');
+                        skipped++;
+                        // Queue the local version to sync up so cloud catches up
+                        var localVal = localStorage.getItem('mc_' + row.key);
+                        if (localVal) {
+                            try { syncToCloud(row.key, JSON.parse(localVal)); } catch(e) {}
+                        }
+                        return;
+                    }
                     localStorage.setItem('mc_' + row.key, JSON.stringify(row.value));
+                    if (cloudTs) localStorage.setItem('mc_ts_' + row.key, cloudTs);
+                    pulled++;
                 });
+                console.log('SYNC DOWN:', pulled, 'pulled,', skipped, 'kept local (newer)');
+                if (window.SecurityPod) SecurityPod.reportSyncDown();
 
                 return true; // cloud data was loaded
             } catch (err) {
                 console.error('SYNC DOWN ERROR:', err);
+                if (window.SecurityPod) SecurityPod.reportSyncError('down', err.message);
                 return false;
             }
         }
@@ -3915,7 +3990,7 @@
                     'buckets', 'bucket_settings', 'paycheck_log',
                     'manual_pending', 'sinking_funds',
                     'cycle_entries', 'kid_logs', 'timestamps', 'symptom_log',
-                    'checkboxes', 'text_areas',
+                    'checkboxes', 'textareas',
                     'last_auto_run', 'last_bill_reset_month', 'last_checkbox_reset',
                     'finance_preloaded_v2'
                 ];
@@ -4068,8 +4143,8 @@
             list.innerHTML = finAccounts.map(a => `
                 <div class="finance-row">
                     <div class="fr-left">
-                        <span class="fr-name">${a.name}</span>
-                        <span class="fr-detail">${getAccountDetailText(a)}</span>
+                        <span class="fr-name">${esc(a.name)}</span>
+                        <span class="fr-detail">${esc(getAccountDetailText(a))}</span>
                     </div>
                     <div class="fr-right">
                         <span class="fr-amount ${getDisplayBalance(a) >= 0 ? 'positive' : 'outgoing'}">$${Math.abs(getDisplayBalance(a)).toFixed(2)}</span>
@@ -4115,7 +4190,7 @@
                 let buttons = '';
 
                 if (b.status === 'processed') {
-                    const via = b.paidBy ? ' \u00b7 ' + b.paidBy : '';
+                    const via = b.paidBy ? ' \u00b7 ' + esc(b.paidBy) : '';
                     dueLabel = '<span class="status-processed">Processed' + via + '</span>';
                     rowClass += ' bill-processed';
                     buttons = '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>';
@@ -4123,7 +4198,9 @@
                     dueLabel = '<span class="status-pending">Pending $' + (b.paidAmount || b.amount).toFixed(2) + '</span>';
                     rowClass += ' bill-pending';
                     buttons = '<button class="finance-btn-sm" onclick="markBillProcessed(\'' + b.id + '\')" style="border-color:#6bbf7b;color:#6bbf7b;">confirm</button>' +
-                              '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>';
+                              '<button class="finance-btn-sm" onclick="revertPendingBill(\'' + b.id + '\')">undo</button>' +
+                              '<button class="finance-btn-sm" onclick="editFinanceItem(\'bill\',\'' + b.id + '\')">edit</button>' +
+                              '<button class="finance-btn-sm" onclick="deleteFinanceItem(\'bill\',\'' + b.id + '\')">x</button>';
                 } else {
                     rowClass += ' bill-unpaid';
                     if (daysUntil < 0) {
@@ -4146,8 +4223,8 @@
 
                 return '<div class="' + rowClass + '">' +
                     '<div class="fr-left">' +
-                        '<span class="fr-name">' + b.name + '</span>' +
-                        '<span class="fr-detail">' + dueLabel + (extras.length ? ' \u00b7 ' + extras.join(' \u00b7 ') : '') + '</span>' +
+                        '<span class="fr-name">' + esc(b.name) + '</span>' +
+                        '<span class="fr-detail">' + dueLabel + (extras.length ? ' \u00b7 ' + extras.map(esc).join(' \u00b7 ') : '') + '</span>' +
                     '</div>' +
                     '<div class="fr-right">' +
                         '<span class="fr-amount ' + (b.status === 'unpaid' ? 'pending' : '') + '">' + fmt$(b.amount) + '</span>' +
@@ -4251,7 +4328,7 @@
             billRows.forEach(function(row) {
                 const bill = row.bill;
                 const dueDay = row.dueDay;
-                html += '<div class="timeline-bill-name">' + bill.name + '</div>';
+                html += '<div class="timeline-bill-name">' + esc(bill.name) + '</div>';
                 dates.forEach((d, i) => {
                     const isToday = i === todayIndex;
                     const isPayday = nextPayday && d.getTime() === nextPayday.getTime();
@@ -4345,7 +4422,7 @@
             });
             html += '<th>$/mo</th></tr></thead><tbody>';
             recurringBills.forEach(bill => {
-                html += '<tr><td>' + bill.name + '</td>';
+                html += '<tr><td>' + esc(bill.name) + '</td>';
                 months.forEach(m => {
                     const mKey = m.year + '-' + String(m.month + 1).padStart(2, '0');
                     const histKey = bill.id + '_' + mKey;
@@ -4469,6 +4546,19 @@
         // Normalize bill statuses — call once before any bill rendering
         function normalizeBillStatuses() {
             finBills.forEach(b => { if (!b.status) b.status = b.paid ? 'processed' : 'unpaid'; });
+        }
+
+        function normalizeRecurringLabel(value) {
+            if (!value) return '';
+            const normalized = String(value).trim().toLowerCase();
+            const recurringMap = {
+                'weekly': 'Weekly',
+                'bi-weekly': 'Bi-weekly',
+                'monthly': 'Monthly',
+                'quarterly': 'Quarterly',
+                'yearly': 'Yearly'
+            };
+            return recurringMap[normalized] || value;
         }
 
         // Categorize a bill by priority tier
@@ -4624,7 +4714,7 @@
                     const isOverdue = dueDate && dueDate < today;
 
                     html += '<div class="advisor-bill-row ' + rowClass + '">';
-                    html += '<div><span class="advisor-bill-name">' + b.name + '</span>';
+                    html += '<div><span class="advisor-bill-name">' + esc(b.name) + '</span>';
                     html += '<span style="font-size:11px; color:#6b5660; margin-left:6px;">' + (isOverdue ? 'OVERDUE' : ordinal(dueDay)) + '</span></div>';
                     html += '<div style="display:flex;align-items:center;gap:8px;">';
                     html += '<span class="advisor-bill-amt" style="color:#d4ccc8;">' + fmt$(b.amount) + '</span>';
@@ -4635,7 +4725,7 @@
                 // Show pending bills
                 pendingBills.forEach(b => {
                     html += '<div class="advisor-bill-row done">';
-                    html += '<div><span class="advisor-bill-name">' + b.name + '</span></div>';
+                    html += '<div><span class="advisor-bill-name">' + esc(b.name) + '</span></div>';
                     html += '<div style="display:flex;align-items:center;gap:8px;">';
                     html += '<span class="advisor-bill-amt" style="color:#6b5660;">' + fmt$(b.paidAmount || b.amount) + '</span>';
                     html += '<span class="advisor-bill-tag advisor-tag-done">PENDING</span>';
@@ -4830,7 +4920,7 @@
                     // Overdue first — needs attention
                     overdueBills.forEach(b => {
                         html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:rgba(212,132,154,0.08); border-radius:8px; margin-bottom:6px; border-left:3px solid #d4849a;">'
-                              + '<div><span style="font-size:14px; color:#d4ccc8; font-weight:500;">' + b.name + '</span>'
+                              + '<div><span style="font-size:14px; color:#d4ccc8; font-weight:500;">' + esc(b.name) + '</span>'
                               + '<span style="font-size:11px; color:#d4849a; margin-left:8px;">⚠ overdue</span></div>'
                               + '<span style="font-size:14px; font-weight:600; color:#d4849a;">' + fmt$(b.amount) + '</span>'
                               + '</div>';
@@ -4858,7 +4948,7 @@
                         }
 
                         html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:' + bgColor + '; border-radius:8px; margin-bottom:6px; border-left:3px solid ' + borderColor + '; ' + opacity + '">'
-                              + '<div><span style="font-size:14px; color:#d4ccc8; font-weight:500;">' + b.name + '</span>'
+                              + '<div><span style="font-size:14px; color:#d4ccc8; font-weight:500;">' + esc(b.name) + '</span>'
                               + '<span style="font-size:11px; color:' + labelColor + '; margin-left:8px;">' + emoji + ' ' + label + '</span></div>'
                               + '<span style="font-size:14px; font-weight:600; color:#d4ccc8;">' + fmt$(b.amount) + '</span>'
                               + '</div>';
@@ -5003,8 +5093,8 @@
                 return `
                 <div class="finance-row">
                     <div class="fr-left">
-                        <span class="fr-name">${i.source}</span>
-                        <span class="fr-detail">${i.frequency || ''}${showMonthly ? ' (≈' + fmt$(monthly) + '/mo)' : ''}${i.nextDate ? ' · Next: ' + new Date(i.nextDate + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : ''}</span>
+                        <span class="fr-name">${esc(i.source)}</span>
+                        <span class="fr-detail">${esc(i.frequency || '')}${showMonthly ? ' (≈' + fmt$(monthly) + '/mo)' : ''}${i.nextDate ? ' · Next: ' + new Date(i.nextDate + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : ''}</span>
                     </div>
                     <div class="fr-right">
                         <span class="fr-amount positive">$${i.amount.toFixed(2)}</span>
@@ -5026,8 +5116,8 @@
             list.innerHTML = sorted.slice(0, 20).map(t => `
                 <div class="finance-row">
                     <div class="fr-left">
-                        <span class="fr-name">${t.description}</span>
-                        <span class="fr-detail">${t.category || ''} · ${new Date(t.date + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
+                        <span class="fr-name">${esc(t.description)}</span>
+                        <span class="fr-detail">${esc(t.category || '')} · ${new Date(t.date + 'T00:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'})}</span>
                     </div>
                     <div class="fr-right">
                         <span class="fr-amount ${t.amount >= 0 ? 'positive' : 'outgoing'}">$${Math.abs(t.amount).toFixed(2)}</span>
@@ -5152,16 +5242,16 @@
                 return `
                 <div class="finance-row" style="flex-wrap:wrap;">
                     <div class="fr-left" style="min-width:200px;">
-                        <span class="fr-name">${d.name}<span class="debt-type-badge ${badgeClass}">${d.type || 'debt'}</span></span>
+                        <span class="fr-name">${esc(d.name)}<span class="debt-type-badge ${badgeClass}">${esc(d.type || 'debt')}</span></span>
                         <span class="fr-detail">
                             ${d.apr > 0 ? d.apr + '% APR · ' + fmt$(monthlyInt) + '/mo interest · ' : '0% interest · '}
                             Min: ${fmt$(d.minPayment || 0)} · Payoff: ${payoffLabel}
-                            ${d.dueDate ? ' · Due: ' + d.dueDate : ''}
+                            ${d.dueDate ? ' · Due: ' + esc(d.dueDate) : ''}
                         </span>
                         <div class="debt-progress-wrap">
                             <div class="debt-progress-fill" style="width:${paidOff.toFixed(1)}%; background: ${paidOff > 75 ? '#b48db5' : paidOff > 40 ? '#e8b84b' : '#d4849a'};"></div>
                         </div>
-                        <span class="fr-detail">${paidOff.toFixed(0)}% paid off${d.notes ? ' · ' + d.notes : ''}</span>
+                        <span class="fr-detail">${paidOff.toFixed(0)}% paid off${d.notes ? ' · ' + esc(d.notes) : ''}</span>
                     </div>
                     <div class="fr-right">
                         <span class="fr-amount outgoing">${fmt$(d.currentBalance)}</span>
@@ -5428,7 +5518,7 @@
                         .sort((a, b) => b[1] - a[1])
                         .map(([cat, total]) => `
                             <div class="spending-cat-card">
-                                <span class="spending-cat-name">${SPENDING_CATS[cat] || '📦'} ${cat}</span>
+                                <span class="spending-cat-name">${SPENDING_CATS[cat] || '📦'} ${esc(cat)}</span>
                                 <span class="spending-cat-amount">${fmt$(total)}</span>
                             </div>
                         `).join('')
@@ -5449,8 +5539,8 @@
                     list.innerHTML = recent.map(e => `
                         <div class="spending-entry">
                             <div class="spending-entry-left">
-                                <span class="spending-entry-cat">${SPENDING_CATS[e.category] || '📦'} ${e.category}</span>
-                                <span class="spending-entry-note">${e.date}${e.note ? ' · ' + e.note : ''}</span>
+                                <span class="spending-entry-cat">${SPENDING_CATS[e.category] || '📦'} ${esc(e.category)}</span>
+                                <span class="spending-entry-note">${esc(e.date)}${e.note ? ' · ' + esc(e.note) : ''}</span>
                             </div>
                             <div class="spending-entry-right">
                                 <span class="spending-entry-amount">${fmt$(e.amount)}</span>
@@ -5574,6 +5664,19 @@
             const bill = finBills.find(b => b.id === id);
             if (!bill) return;
             bill.status = 'processed';
+            saveData('fin_bills', finBills);
+            renderFinance();
+        }
+
+        function revertPendingBill(id) {
+            const bill = finBills.find(b => b.id === id);
+            if (!bill) return;
+            if (!confirm('Move ' + bill.name + ' back to unpaid?')) return;
+            bill.status = 'unpaid';
+            bill.paid = false;
+            delete bill.paidAmount;
+            delete bill.paidDate;
+            delete bill.paidBy;
             saveData('fin_bills', finBills);
             renderFinance();
         }
@@ -5804,9 +5907,9 @@
                 if (!name) { alert('Give the bill a name'); return; }
                 if (editingId) {
                     const b = finBills.find(x => x.id === editingId);
-                    if (b) { b.name = name; b.amount = amount; b.dueDate = dueDate; b.recurring = recurring; b.category = category; b.autoPay = autoPay; b.paidBy = paidBy; }
+                    if (b) { b.name = name; b.amount = amount; b.dueDate = dueDate; b.recurring = normalizeRecurringLabel(recurring); b.category = category; b.autoPay = autoPay; b.paidBy = paidBy; }
                 } else {
-                    finBills.push({ id: genId(), name, amount, dueDate, recurring, paid: false, category, autoPay, paidBy });
+                    finBills.push({ id: genId(), name, amount, dueDate, recurring: normalizeRecurringLabel(recurring), paid: false, category, autoPay, paidBy });
                 }
                 saveData('fin_bills', finBills);
 
@@ -6120,8 +6223,8 @@
                     return '<div class="cycle-entry">' +
                         '<div>' +
                             '<span style="color:#d4ccc8;">' + dateStr + '</span>' +
-                            (symptoms ? '<br><span style="color:#9a8a92; font-size:11px;">' + symptoms + '</span>' : '') +
-                            (e.notes ? '<br><span style="color:#6b5660; font-size:11px; font-style:italic;">' + e.notes + '</span>' : '') +
+                            (symptoms ? '<br><span style="color:#9a8a92; font-size:11px;">' + esc(symptoms) + '</span>' : '') +
+                            (e.notes ? '<br><span style="color:#6b5660; font-size:11px; font-style:italic;">' + esc(e.notes) + '</span>' : '') +
                         '</div>' +
                         '<div style="display:flex; align-items:center; gap:6px;">' +
                             '<span class="ce-flow" style="color:' + (flowColors[e.flow] || '#9a8a92') + '; border:1px solid ' + (flowColors[e.flow] || '#3d2f35') + ';">' + (e.flow || 'none') + '</span>' +
@@ -6223,7 +6326,7 @@
                 const latest = [...kidLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
                 const t = new Date(latest.timestamp);
                 const timeStr = t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                latestEl.innerHTML = '<span class="kid-cat-badge cat-' + latest.category + '">' + latest.category + '</span> ' + severityDots(latest.severity) + ' <span style="font-size:12px; color:#9a8a92;">' + timeStr + '</span>';
+                latestEl.innerHTML = '<span class="kid-cat-badge cat-' + esc(latest.category) + '">' + esc(latest.category) + '</span> ' + severityDots(latest.severity) + ' <span style="font-size:12px; color:#9a8a92;">' + timeStr + '</span>';
             } else {
                 latestEl.textContent = 'No entries yet';
             }
@@ -6243,16 +6346,16 @@
                     return '<div class="kid-entry">' +
                         '<div class="kid-entry-header">' +
                             '<div>' +
-                                '<span class="kid-cat-badge cat-' + e.category + '">' + e.category + '</span>' +
+                                '<span class="kid-cat-badge cat-' + esc(e.category) + '">' + esc(e.category) + '</span>' +
                                 severityDots(e.severity) +
                             '</div>' +
                             '<div>' +
                                 '<span class="kid-entry-time">' + dateStr + ' ' + timeStr + '</span>' +
                             '</div>' +
                         '</div>' +
-                        '<div class="kid-entry-desc">' + e.description + '</div>' +
+                        '<div class="kid-entry-desc">' + esc(e.description) + '</div>' +
                         '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">' +
-                            '<span class="kid-entry-location">' + locationLabel(e.location) + '</span>' +
+                            '<span class="kid-entry-location">' + esc(locationLabel(e.location)) + '</span>' +
                             '<button class="finance-btn-sm" onclick="deleteKidEntry(\'' + e.id + '\')">x</button>' +
                         '</div>' +
                     '</div>';
@@ -6350,7 +6453,7 @@
                 return '<div class="timestamp-entry">' +
                     '<div>' +
                         '<span class="ts-time">' + timeStr + '</span>' +
-                        (t.label ? '<br><span class="ts-label">' + t.label + '</span>' : '') +
+                        (t.label ? '<br><span class="ts-label">' + esc(t.label) + '</span>' : '') +
                     '</div>' +
                     '<div style="display:flex; align-items:center; gap:6px;">' +
                         '<span style="color:#6b5660; font-size:10px;">' + dateStr + '</span>' +
@@ -6539,12 +6642,12 @@
                 const m = String(t.getMinutes()).padStart(2, '0');
                 const timeStr = h + ':' + m;
 
-                return `<div class="symptom-entry se-severity-${e.severity}">
+                return `<div class="symptom-entry se-severity-${esc(e.severity)}">
                     <span class="se-time">${timeStr}</span> ·
-                    <span class="se-region">${e.region}</span> ·
-                    <span class="se-symptoms">${e.symptoms.join(', ')}</span>
-                    <span style="font-size:11px; color:#9a8a92;"> (${e.severity})</span>
-                    ${e.note ? '<div style="font-size:11px; color:#9a8a92; margin-top:2px;">' + e.note + '</div>' : ''}
+                    <span class="se-region">${esc(e.region)}</span> ·
+                    <span class="se-symptoms">${esc(e.symptoms.join(', '))}</span>
+                    <span style="font-size:11px; color:#9a8a92;"> (${esc(e.severity)})</span>
+                    ${e.note ? '<div style="font-size:11px; color:#9a8a92; margin-top:2px;">' + esc(e.note) + '</div>' : ''}
                 </div>`;
             }).join('');
 
@@ -6858,7 +6961,7 @@
             const overdueBills = getOverdueBills();
             if (overdueBills.length > 0) {
                 const total = overdueBills.reduce((s, b) => s + b.amount, 0);
-                pastDueEl.innerHTML = '⚠ PAST DUE: ' + overdueBills.map(b => b.name + ' ($' + b.amount.toFixed(2) + ')').join(', ') + ' — Total: ' + fmt$(total);
+                pastDueEl.innerHTML = '⚠ PAST DUE: ' + overdueBills.map(b => esc(b.name) + ' ($' + b.amount.toFixed(2) + ')').join(', ') + ' — Total: ' + fmt$(total);
                 pastDueEl.style.display = 'block';
             } else {
                 pastDueEl.style.display = 'none';
@@ -6932,89 +7035,27 @@
                 `<span style="color:#d4ccc8;">$${bucketSettings.cashWithdraw} cash out</span>`;
         }
 
-        // --- PRE-LOAD PETRA'S REAL DATA ---
-        // This runs ONCE — the first time the page loads after the update
-        // It sets up all the real bill/income data so Petra doesn't have to enter it manually
+        // --- FIRST-RUN SETUP (empty starter data) ---
+        // Runs ONCE on first load — creates empty structures so the UI renders cleanly
+        // User adds their own real data through the app interface
         function preloadFinanceData() {
             // Check if we've already done this
             if (loadData('finance_preloaded_v2')) return;
 
             const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-            const today = new Date().toISOString().split('T')[0];
 
-            // --- Set up accounts with real balances ---
+            // --- Set up empty starter accounts ---
             if (finAccounts.length === 0) {
                 finAccounts = [
-                    { id: genId(), name: 'Wells Fargo Checking', type: 'Checking', balance: 856.60 },
-                    { id: genId(), name: 'Wells Fargo Savings', type: 'Savings', balance: 57.11 }
+                    { id: genId(), name: 'Checking', type: 'Checking', balance: 0 },
+                    { id: genId(), name: 'Savings', type: 'Savings', balance: 0 }
                 ];
                 saveData('fin_accounts', finAccounts);
             }
 
-            // --- Set up income sources ---
-            if (finIncome.length === 0) {
-                finIncome = [
-                    { id: genId(), source: 'Tissue Recovery (paycheck)', amount: 2100, frequency: 'Bi-weekly', nextDate: '2026-03-06' },
-                    { id: genId(), source: 'Child Support IN', amount: 417, frequency: 'Monthly', nextDate: '2026-03-06' }
-                ];
-                saveData('fin_income', finIncome);
-            }
-
-            // --- Set up bills with real amounts and due dates ---
-            if (finBills.length === 0) {
-                finBills = [
-                    // FIXED BILLS
-                    { id: genId(), name: 'Mortgage (Newrez-Shellpoint)', amount: 1417.68, dueDate: '2026-03-10', recurring: 'Monthly', paid: false, category: 'Housing', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'BCBS Health Insurance', amount: 427.21, dueDate: '2026-02-20', recurring: 'Monthly', paid: false, category: 'Insurance', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Delta Dental', amount: 96.60, dueDate: '2026-03-06', recurring: 'Monthly', paid: true, category: 'Insurance', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Verizon (3 lines)', amount: 403.19, dueDate: '2026-02-10', recurring: 'Monthly', paid: false, category: 'Phone/Internet', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'Allo Internet', amount: 174.40, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Phone/Internet', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'LES Electric', amount: 446.80, dueDate: '2026-02-19', recurring: 'Monthly', paid: false, category: 'Utilities', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'Black Hills Gas ⚠ DISCONNECT', amount: 231.44, dueDate: '2026-03-11', recurring: 'Monthly', paid: false, category: 'Utilities', autoPay: false, paidBy: '' },
-                    { id: genId(), name: 'Comn Cap (Ulta)', amount: 45.00, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
-
-                    // HEALTH/MEDICAL
-                    { id: genId(), name: 'GoodRx Gold', amount: 9.99, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Medical', autoPay: true, paidBy: '' },
-
-                    // DEBT
-                    { id: genId(), name: 'NE Furniture Mart', amount: 25.00, dueDate: '2026-03-13', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'TJX Rewards', amount: 50.00, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Other', autoPay: true, paidBy: '' },
-
-                    // SUBSCRIPTIONS
-                    { id: genId(), name: 'Spotify', amount: 18.22, dueDate: '2026-03-13', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Netflix', amount: 19.29, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Disney+', amount: 32.19, dueDate: '2026-02-22', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Adobe', amount: 32.16, dueDate: '2026-03-10', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Audible', amount: 16.03, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'ChatGPT', amount: 20.00, dueDate: '2026-03-01', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Claude', amount: 25.00, dueDate: '2026-03-11', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'AppClose', amount: 6.99, dueDate: '2026-03-09', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Rocket Car Wash', amount: 10.71, dueDate: '2026-02-28', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' },
-                    { id: genId(), name: 'Canva', amount: 15.00, dueDate: '2026-03-02', recurring: 'Monthly', paid: false, category: 'Subscriptions', autoPay: true, paidBy: '' }
-                ];
-                saveData('fin_bills', finBills);
-            }
-
-            // --- Set up initial bucket balances based on current checking ---
-            // Today is payday ($2,283.32) + $200 from mom = $2,483.32 in checking
-            // We'll allocate the paycheck amount through the buckets
-            const paycheckAmount = 2283.32;
-            const split = calculatePaycheckSplit(paycheckAmount);
-            buckets.fixed.balance = split.fixed;
-            buckets.safety.balance = 52.11 + split.safety;  // savings + safety allocation
-            buckets.life.balance = split.life + 200;  // life budget + mom's $200
-            buckets.dopamine.balance = split.dopamine;
-            saveBuckets();
-
-            // Log the initial paycheck
-            paycheckLog.push({
-                id: genId(),
-                date: today,
-                amount: paycheckAmount,
-                split: split,
-                note: 'Initial paycheck — system setup'
-            });
-            saveBuckets();
+            // --- No income pre-seeded — user adds through Income tab ---
+            // --- No bills pre-seeded — user adds through Bills tab ---
+            // --- No bucket balances pre-seeded — user sets up via paycheck flow ---
 
             // Mark as done so this doesn't run again
             saveData('finance_preloaded_v2', true);
@@ -7044,8 +7085,9 @@
                     b.status = b.paid ? 'processed' : 'unpaid';
                     changed = true;
                 }
-                if (b.dueDate && !b.recurring) {
-                    b.recurring = 'monthly';
+                const normalizedRecurring = normalizeRecurringLabel(b.recurring);
+                if (b.recurring !== normalizedRecurring) {
+                    b.recurring = normalizedRecurring;
                     changed = true;
                 }
             });
@@ -7670,24 +7712,43 @@
         // 4. Then launches everything like normal
 
         async function initApp() {
-            // Step 1: Check if logged in (skip if testing locally)
-            const skipAuth = new URLSearchParams(window.location.search).get('skip');
-            if (!skipAuth) {
-                try {
-                    const { data: { user } } = await supabaseClient.auth.getUser();
-                    if (!user) {
-                        window.location.href = 'login.html';
-                        return;
-                    }
-                    const cloudHadData = await syncFromCloud();
-                    if (!cloudHadData) {
-                        await migrateLocalToCloud();
-                    }
-                } catch (e) {
-                    console.log('Auth check failed:', e.message);
+            // Step 0: Install security pod (catches errors from this point on)
+            if (window.SecurityPod) {
+                SecurityPod.install({
+                    supabaseClient: supabaseClient,
+                    supabaseUrl: SUPABASE_URL,
+                    supabaseAnonKey: SUPABASE_ANON_KEY,
+                    setStatus: setStatus,
+                    onHealthChange: null // will wire up when health badge is built
+                });
+            }
+
+            // Step 1: Check if logged in — redirect to login if not
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) {
                     window.location.href = 'login.html';
                     return;
                 }
+                const cloudHadData = await syncFromCloud();
+                if (!cloudHadData) {
+                    await migrateLocalToCloud();
+                }
+            } catch (e) {
+                console.log('Auth check failed:', e.message);
+                window.location.href = 'login.html';
+                return;
+            }
+
+            // Step 1.5: Verify database security (runs in background, doesn't block app)
+            if (window.SecurityPod) {
+                SecurityPod.probeRLS().then(function(result) {
+                    if (!result.passed) {
+                        setStatus('error', 'Security check failed — some database protections may be missing. Check console.');
+                    }
+                    // Flush any buffered log entries to cloud
+                    SecurityPod.flushLogs();
+                });
             }
 
             // Step 2: Re-read data from localStorage (cloud sync may have updated it)
@@ -7866,6 +7927,9 @@
         }
 
     </script>
+
+    <!-- Assistant pod — all task management logic -->
+    <script src="assistant.js"></script>
 
     <!-- Register the service worker — makes the app installable + offline-capable -->
     <script>

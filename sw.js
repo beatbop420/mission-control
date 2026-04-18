@@ -2,7 +2,7 @@
 // Think of it like a little helper that sits between your app and the internet.
 // It saves copies of your files so the app loads even with no wifi.
 
-const CACHE_NAME = 'mission-control-v19';
+const CACHE_NAME = 'mission-control-v22';
 
 // Figure out where the app lives (works on both GitHub Pages and custom domains)
 // On GitHub Pages: /mission-control/  |  On custom domain: /
@@ -20,11 +20,22 @@ const FILES_TO_CACHE = [
     BASE + 'icons/icon-512.png'
 ];
 
+// Optional pod assets should not block the whole dashboard from updating.
+const OPTIONAL_FILES_TO_CACHE = [
+    BASE + 'assistant.js',
+    BASE + 'assistant.css',
+    BASE + 'security-pod.js'
+];
+
 // INSTALL: when the service worker first sets up, cache the static assets
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            return cache.addAll(FILES_TO_CACHE);
+            return cache.addAll(FILES_TO_CACHE).then(() => {
+                return Promise.allSettled(
+                    OPTIONAL_FILES_TO_CACHE.map(url => cache.add(url))
+                );
+            });
         })
     );
     // Don't wait for old service worker to finish — take over immediately
@@ -55,6 +66,9 @@ self.addEventListener('fetch', event => {
 
     // Skip Supabase API calls — those should always go to the network
     if (event.request.url.includes('supabase.co')) return;
+
+    // Skip bank balance API — sensitive data should never be cached
+    if (event.request.url.includes('/balances')) return;
 
     // Skip Google Fonts and external CDNs — let them handle their own caching
     if (event.request.url.includes('fonts.googleapis.com') ||
