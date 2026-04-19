@@ -38,7 +38,9 @@ try:
     r.raise_for_status()
     raw = r.json()
 except Exception as e:
-    print(f'❌ SimpleFIN fetch failed: {e}')
+    # Don't print the exception string — httpx messages often include the
+    # request URL, and SIMPLEFIN_ACCESS_URL embeds credentials.
+    print(f'❌ SimpleFIN fetch failed: {type(e).__name__}')
     sys.exit(1)
 
 # ── Format the data (same shape as dashboard-server.py returns) ──────────────
@@ -128,8 +130,11 @@ try:
     if resp.status_code in (200, 201, 204):
         print(f'✅ Saved successfully — {fetched_at_human}')
     else:
-        print(f'❌ Supabase error {resp.status_code}: {resp.text}')
+        # Don't print resp.text — error bodies can contain table/column names
+        # and partial row data. Status code is enough to diagnose.
+        print(f'❌ Supabase error status {resp.status_code}')
         sys.exit(1)
 except Exception as e:
-    print(f'❌ Supabase request failed: {e}')
+    # Don't print the exception string — may include URLs or internal detail.
+    print(f'❌ Supabase request failed: {type(e).__name__}')
     sys.exit(1)
