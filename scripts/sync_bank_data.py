@@ -43,7 +43,7 @@ except Exception as e:
 
 # ── Format the data (same shape as dashboard-server.py returns) ──────────────
 accounts = []
-for acc in raw.get('accounts', []):
+for idx, acc in enumerate(raw.get('accounts', []), 1):
     name = acc.get('name', 'Unknown').encode('ascii', 'replace').decode()
 
     txns         = acc.get('transactions', [])
@@ -85,8 +85,7 @@ for acc in raw.get('accounts', []):
         ],
     })
 
-    print(f'  {name}: posted=${posted_balance:.2f}, available=${simplefin_avail:.2f}, '
-          f'pending={len(pending_txns)} tx (${pending_total:.2f})')
+    print(f'  Account {idx} sync successful.')
 
 # ── Build the final payload ───────────────────────────────────────────────────
 now = datetime.now(timezone.utc)
