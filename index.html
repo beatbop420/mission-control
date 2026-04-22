@@ -4591,8 +4591,8 @@
 
             const checking = getAccountByType('Checking');
             if (!checking || typeof checking.availableBalance !== 'number') {
-                if (intro) intro.textContent = 'Bank details will show up here after the SimpleFIN feed loads.';
-                wrap.innerHTML = '<div class="bank-snapshot-card" style="grid-column:1 / -1;"><div class="bank-snapshot-note">Bank feed will show posted, available, and pending here once SimpleFIN data loads.</div></div>';
+                if (intro) intro.textContent = 'Bank sync is temporarily paused.';
+                wrap.innerHTML = '<div class="bank-snapshot-card" style="grid-column:1 / -1;"><div class="bank-snapshot-note">Bank sync is now local-only. Your laptop will read SimpleFIN and push planning numbers here once the new system is set up. This will happen during Phase 2.</div></div>';
                 return;
             }
 
