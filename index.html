@@ -2215,6 +2215,7 @@
                 <span>Weather + Pressure <span class="location-label">📍 Lincoln, Nebraska</span></span>
                 <button class="inline-refresh-btn" onclick="refreshWeatherData()">Refresh Weather</button>
             </h2>
+            <div id="weather-timestamp" style="font-size:11px; color:#6b5a62; margin-bottom:6px;"></div>
             <div id="weather-loading">Loading weather data...</div>
             <div id="weather-content" style="display:none;">
                 <div class="weather-main">
@@ -3521,6 +3522,10 @@
 
             document.getElementById('weather-loading').style.display = 'none';
             document.getElementById('weather-content').style.display = 'block';
+
+            const now = new Date();
+            const stamp = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            document.getElementById('weather-timestamp').textContent = 'Last updated ' + stamp;
         }
 
         // ========== DISPLAY POLLEN ==========
