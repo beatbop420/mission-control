@@ -1041,18 +1041,17 @@
     }
 }
 
-/* Added-task success state: sage green with a sparkle checkmark */
+/* Added-task success state */
 .ast-action-btn.ast-action-btn-done {
-    background: rgba(156, 187, 143, 0.18);
+    background: transparent;
     border-color: var(--ast-success);
     color: var(--ast-success);
     cursor: default;
+    opacity: 0.85;
 }
 
 .ast-action-btn.ast-action-btn-done::before {
     content: '✓ ';
-    color: var(--ast-success);
-    margin-right: 2px;
 }
 
 /* Expand button icon */
@@ -1091,7 +1090,7 @@
 .ast-back-to-top {
     position: fixed;
     right: 18px;
-    bottom: 18px;
+    bottom: 90px;
     width: 44px;
     height: 44px;
     border-radius: 999px;
