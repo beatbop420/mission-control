@@ -1,15 +1,15 @@
 # Finance Tab Rebuild — Progress Tracker
 
 **Your dashboard. Update as we go.**
-Last updated: 2026-04-21 (Phase 0.0 complete)
-Current position: **Phase 0, Step 0.1 — Rotate Supabase service key**
+Last updated: 2026-04-22 (Phase 0 scorched earth ~5/6 done)
+Current position: **Phase 0, Step 0.5 — Google OAuth setup in progress**
 
 ---
 
 ## Overall Progress
 
 ```
-Phase 0 — Scorched Earth      [###                 ]   1 / 6 steps
+Phase 0 — Scorched Earth      [#####               ]   5 / 6 steps
 Phase 1 — Lock the Database   [                    ]   0 / 3 steps
 Phase 2 — Build Sync Tool     [                    ]   0 / 5 steps
 Phase 3 — Dashboard Wiring    [                    ]   0 / 4 steps
@@ -19,7 +19,7 @@ Phase 6 — Ops Hardening       [                    ]   0 / 5 steps
 Phase 7 — Service Worker      [                    ]   0 / 1 step
 ```
 
-**Total: 1 / 32 steps complete.**
+**Total: 5 / 32 steps complete.**
 
 Full plan: `FINANCE-TAB-MASTER-PLAN-GLM.md`
 Your UUID (fill in): `___________________________________`
@@ -226,3 +226,15 @@ Don't consider the rebuild done until all boxes are checked:
 - **Flags raised during verify:** service-key-vs-user-auth walkback, schema changes (`bills_reserved`/`reserve_total`/`spendable_today` added, `manual_pending` dropped), vague "stub Bank tab," implicit manual-schedule default, `sync_bank_data.py` deletion missing from plan.
 - **Phase 0.0 complete** — Petra retrieved UUID from Supabase Dashboard → Auth → Users, wrote it on paper. Not stored anywhere digital. Bangarang'd here.
 - **Next:** Phase 0.1 — rotate Supabase service role key (destructive; new key needed for Phase 2 keyring storage).
+
+## 2026-04-22 (SESSION 2)
+- **Phase 0.1 DONE** — Created new Secret key in Supabase. Wrote it down on paper. Old service_role key now has a replacement waiting.
+- **Phase 0.2 DONE** — Deleted SUPABASE_SERVICE_KEY + SUPABASE_URL from GitHub Secrets (Actions). SimpleFIN already gone (disabled weeks ago).
+- **Phase 0.3 DONE** — Deleted `.github/workflows/sync-bank-data.yml` + `scripts/sync_bank_data.py` from repo. Committed + pushed.
+- **Phase 0.4 DONE** — Purged 86 old sync-bank-data workflow runs from GitHub Actions (deleted via `gh run delete` + xargs). Old logs with leaked balances gone.
+- **Phase 0.5 IN PROGRESS** — Originally planned to disable magic link. Changed direction: setting up Google OAuth (Sign in with Google) instead.
+  - Found: Supabase Email provider was magic-link only. She wants Google OAuth (simpler, no password to manage).
+  - In Google Cloud Console: created OAuth consent screen (App name: "Mission Control," support email: petdevo@gmail.com).
+  - **Next:** Create OAuth 2.0 Client ID in Google Cloud, paste into Supabase.
+- **Phase 0.6 (Stub Bank tab)** still pending after OAuth setup completes.
+- **Context burn note:** Petra prefers multiple steps at once (not slow drip). Adjusted pacing mid-session.
