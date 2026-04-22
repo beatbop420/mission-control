@@ -3524,7 +3524,7 @@
             document.getElementById('weather-content').style.display = 'block';
 
             const now = new Date();
-            const stamp = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const stamp = now.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
             document.getElementById('weather-timestamp').textContent = 'Last updated ' + stamp;
         }
 
