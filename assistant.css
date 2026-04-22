@@ -1086,35 +1086,3 @@
     border-color: var(--ast-sparkle);
 }
 
-/* Back-to-top button — fixed, sparkle-lavender, shows when scrolled */
-.ast-back-to-top {
-    position: fixed;
-    right: 18px;
-    bottom: 90px;
-    width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    border: 1px solid var(--ast-sparkle);
-    background: var(--ast-card);
-    color: var(--ast-sparkle);
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(26, 18, 22, 0.55), 0 0 12px rgba(201, 184, 212, 0.18);
-    opacity: 0;
-    transform: translateY(8px);
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
-    z-index: 50;
-}
-
-.ast-back-to-top.ast-visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.ast-back-to-top:hover {
-    color: var(--ast-text-heading);
-    border-color: var(--ast-text-heading);
-}

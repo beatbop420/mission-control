@@ -1927,12 +1927,6 @@
         pendingFocusTarget = null;
 
         const shell = el('div', 'ast-shell');
-        
-        // Add back to top button
-        const backToTop = el('button', 'ast-back-to-top', '↑');
-        backToTop.type = 'button';
-        backToTop.dataset.astAction = 'back-to-top';
-        backToTop.title = 'Back to top';
 
         if (state.view === 'briefing') {
             // Briefing view: greeting + 1+2 cards + energy
@@ -1952,7 +1946,7 @@
             renderRoutine(shell);
         }
 
-        const children = [shell, backToTop];
+        const children = [shell];
         const picker = renderPicker();
         const modal = renderModal();
         if (picker) children.push(picker);
@@ -1961,9 +1955,6 @@
         host.replaceChildren(...children);
         updateBadge();
         restoreFocusTarget(focusTarget);
-        
-        // Setup scroll listener for back-to-top button
-        setupScrollListener();
     }
 
     function ensureHost() {
@@ -2223,31 +2214,6 @@
         host.addEventListener('keydown', onKeyDown);
     }
 
-    function setupScrollListener() {
-        const backToTopBtn = host.querySelector('.ast-back-to-top');
-        if (!backToTopBtn) return;
-        
-        // Initial check
-        toggleBackToTopVisibility();
-        
-        // Remove any existing listener
-        document.removeEventListener('scroll', toggleBackToTopVisibility);
-        
-        // Add scroll listener
-        document.addEventListener('scroll', toggleBackToTopVisibility);
-    }
-    
-    function toggleBackToTopVisibility() {
-        const backToTopBtn = host && host.querySelector('.ast-back-to-top');
-        if (!backToTopBtn) return;
-        
-        if (window.scrollY > 300) {
-            backToTopBtn.classList.add('ast-visible');
-        } else {
-            backToTopBtn.classList.remove('ast-visible');
-        }
-    }
-    
     function exposeApi() {
         window.Assistant = {
             getDueCount: function() {

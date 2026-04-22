@@ -68,6 +68,39 @@
             75% { transform: rotate(8deg); }
         }
 
+        /* ===== BACK-TO-TOP (global across all tabs) ===== */
+        .back-to-top {
+            position: fixed;
+            right: 18px;
+            bottom: 90px;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            border: 1px solid #c9b8d4;
+            background: #2a1f24;
+            color: #c9b8d4;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(26, 18, 22, 0.55), 0 0 12px rgba(201, 184, 212, 0.18);
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+            z-index: 50;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .back-to-top:hover {
+            color: #ffffff;
+            border-color: #ffffff;
+        }
+
         /* ===== HEADER ===== */
         .header {
             text-align: center;
@@ -3067,6 +3100,9 @@
 
     <!-- Toast notification (pops up briefly after logging) -->
     <div class="toast" id="toast"></div>
+
+    <!-- Back-to-top button (global, on all tabs) -->
+    <button class="back-to-top" id="back-to-top-btn" title="Back to top">↑</button>
 
     <!-- ====== KID BEHAVIOR FORM OVERLAY ====== -->
     <div class="finance-form-overlay" id="kid-form-overlay" onclick="closeKidForm(event)">
@@ -7780,7 +7816,30 @@
             badge.title = title;
         }
 
+        function setupBackToTop() {
+            const btn = document.getElementById('back-to-top-btn');
+            if (!btn) return;
+
+            function toggleVisibility() {
+                if (window.scrollY > 300) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            }
+
+            btn.addEventListener('click', function() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            document.addEventListener('scroll', toggleVisibility);
+            toggleVisibility();
+        }
+
         async function initApp() {
+            // Setup back-to-top button (global across all tabs)
+            setupBackToTop();
+
             // Step 0: Install security pod (catches errors from this point on)
             if (window.SecurityPod) {
                 SecurityPod.install({
@@ -7790,7 +7849,7 @@
                     setStatus: setStatus,
                     onHealthChange: refreshHealthUI
                 });
-                
+
                 // Trigger initial health check UI
                 refreshHealthUI(SecurityPod.getHealth());
 
