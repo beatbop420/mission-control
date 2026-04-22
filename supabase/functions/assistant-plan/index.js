@@ -8,7 +8,7 @@ const corsHeaders = {
 const OUTPUT_SCHEMA = {
     type: 'object',
     additionalProperties: false,
-    required: ['summary', 'recommendedFocus', 'quickWin', 'questions', 'taskSuggestions'],
+    required: ['summary', 'recommendedFocus', 'quickWin', 'taskSuggestions'],
     properties: {
         summary: {
             type: 'string'
@@ -19,25 +19,15 @@ const OUTPUT_SCHEMA = {
         quickWin: {
             type: 'string'
         },
-        questions: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 5
-        },
         taskSuggestions: {
             type: 'array',
             maxItems: 5,
             items: {
                 type: 'object',
                 additionalProperties: false,
-                required: ['title', 'description', 'why', 'dueDate', 'energyFit', 'steps'],
+                required: ['title', 'why', 'dueDate', 'energyFit', 'steps'],
                 properties: {
                     title: {
-                        type: 'string'
-                    },
-                    description: {
                         type: 'string'
                     },
                     why: {
@@ -59,6 +49,24 @@ const OUTPUT_SCHEMA = {
                     }
                 }
             }
+        }
+    }
+};
+
+const EXPAND_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['detail', 'steps'],
+    properties: {
+        detail: {
+            type: 'string'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 8
         }
     }
 };
@@ -113,6 +121,42 @@ function extractOutputText(responseBody) {
     return '';
 }
 
+function expandInstructions() {
+    return [
+        'You are the planning engine behind a personal dashboard assistant.',
+        'The user is stuck on one specific task and needs deeper help — not a summary of what they already know.',
+        'Do NOT restate the task title or repeat any of the original steps back to the user.',
+        'detail: 1-2 short sentences covering something genuinely new: a common blocker they may not have anticipated, a lower-friction way to start, or what "done" actually looks like for this task. Plain language only. No therapy, medical, legal, or financial advice.',
+        'steps: 3-8 concrete next actions that ADD specificity not present in the original steps — things like exact info to gather, fallback options if the first approach fails, or small sub-tasks the original steps skipped.',
+        'Every step must be something new. If the original steps already said it, do not say it again in different words.',
+        'Stay grounded in what the user wrote. Do not invent new deadlines or unrelated tasks.'
+    ].join(' ');
+}
+
+function buildExpandInput(body) {
+    const task = body.task && typeof body.task === 'object' ? body.task : {};
+    const sections = [
+        'TASK:',
+        'Title: ' + (typeof task.title === 'string' ? task.title : ''),
+        'Why it matters: ' + (typeof task.why === 'string' ? task.why : ''),
+    ];
+
+    if (Array.isArray(task.steps) && task.steps.length > 0) {
+        sections.push('Current steps:');
+        task.steps.forEach(function(step) {
+            if (typeof step === 'string' && step.trim()) {
+                sections.push('- ' + step);
+            }
+        });
+    }
+
+    if (typeof body.originalDump === 'string' && body.originalDump.trim()) {
+        sections.push('', 'ORIGINAL BRAIN DUMP (context only):', body.originalDump.trim());
+    }
+
+    return sections.join('\n');
+}
+
 function plannerInstructions() {
     return [
         'You are the planning engine behind a personal dashboard assistant.',
@@ -121,11 +165,15 @@ function plannerInstructions() {
         'Do not give therapy, medical, legal, or financial advice.',
         'Keep the output grounded in what the user wrote plus the provided context.',
         'Return 1-5 task suggestions.',
+        'summary: one short sentence mirroring what the user said back to them. No advice, no tasks, no restating the plan.',
+        'recommendedFocus: name the exact task from your taskSuggestions to do first. One short phrase, not a sentence.',
+        'quickWin: a fast 5-minute action that is different from recommendedFocus. If nothing fits, return an empty string.',
+        'Do not repeat content across summary, recommendedFocus, and quickWin. Each must say something different.',
         'Task titles must be specific and human-sounding, not generic.',
+        'why: one short reason in 8 words or fewer. No filler, no repeating the title.',
         'Only include a dueDate when the user clearly gave a deadline. Otherwise return null.',
         'Steps must be concrete next actions, not abstract restatements of the task.',
-        'Use energyFit to estimate whether the task is low, medium, or high effort.',
-        'Keep summary, recommendedFocus, and quickWin short.'
+        'Use energyFit to estimate whether the task is low, medium, or high effort.'
     ].join(' ');
 }
 
@@ -150,9 +198,34 @@ Deno.serve(async function(req) {
         return json({ error: 'Invalid JSON body.' }, 400);
     }
 
-    const dump = sanitizeDump(body && body.dump);
-    if (!dump) {
-        return json({ error: 'The planner needs a non-empty dump.' }, 400);
+    const mode = body && body.mode === 'expand' ? 'expand' : 'plan';
+
+    let instructions;
+    let input;
+    let schema;
+    let schemaName;
+
+    if (mode === 'expand') {
+        const task = body && body.task;
+        if (!task || typeof task !== 'object' || typeof task.title !== 'string' || !task.title.trim()) {
+            return json({ error: 'Expand needs a task with a title.' }, 400);
+        }
+        instructions = expandInstructions();
+        input = buildExpandInput(body);
+        schema = EXPAND_SCHEMA;
+        schemaName = 'assistant_expand';
+    } else {
+        const dump = sanitizeDump(body && body.dump);
+        if (!dump) {
+            return json({ error: 'The planner needs a non-empty dump.' }, 400);
+        }
+        instructions = plannerInstructions();
+        input = buildInput({
+            dump: dump,
+            context: body && body.context ? body.context : {}
+        });
+        schema = OUTPUT_SCHEMA;
+        schemaName = 'assistant_plan';
     }
 
     const model = Deno.env.get('OPENAI_MODEL') || 'gpt-5-mini';
@@ -165,17 +238,14 @@ Deno.serve(async function(req) {
         },
         body: JSON.stringify({
             model: model,
-            instructions: plannerInstructions(),
-            input: buildInput({
-                dump: dump,
-                context: body && body.context ? body.context : {}
-            }),
+            instructions: instructions,
+            input: input,
             text: {
                 format: {
                     type: 'json_schema',
-                    name: 'assistant_plan',
+                    name: schemaName,
                     strict: true,
-                    schema: OUTPUT_SCHEMA
+                    schema: schema
                 }
             }
         })

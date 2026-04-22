@@ -108,18 +108,18 @@
         if (level <= 3) {
             return {
                 text: 'Running on fumes. Bare minimum only.',
-                color: '#f87171'
+                color: 'var(--ast-danger)'
             };
         }
         if (level <= 6) {
             return {
                 text: 'Some gas in the tank. Pace yourself.',
-                color: '#facc15'
+                color: 'var(--ast-warning)'
             };
         }
         return {
             text: 'Good energy. Get after it.',
-            color: '#4ade80'
+            color: 'var(--ast-success)'
         };
     }
 
@@ -259,7 +259,6 @@
         return {
             id: source.id ? String(source.id) : 'sg_' + index + '_' + Math.random().toString(36).slice(2, 6),
             title: typeof source.title === 'string' && source.title.trim() ? source.title.trim() : 'Suggested task ' + (index + 1),
-            description: typeof source.description === 'string' ? source.description.trim() : '',
             why: typeof source.why === 'string' ? source.why.trim() : '',
             dueDate: dueDate,
             energyFit: energyFit,
@@ -267,8 +266,23 @@
                 .map(normalizeSuggestionStep)
                 .filter(Boolean)
                 .slice(0, 6),
-            addedTaskId: source.addedTaskId ? String(source.addedTaskId) : null
+            addedTaskId: source.addedTaskId ? String(source.addedTaskId) : null,
+            expanded: normalizeExpanded(source.expanded),
+            expandCollapsed: false,
+            expanding: false,
+            expandError: ''
         };
+    }
+
+    function normalizeExpanded(value) {
+        if (!value || typeof value !== 'object') return null;
+        const detail = typeof value.detail === 'string' ? value.detail.trim() : '';
+        const steps = (Array.isArray(value.steps) ? value.steps : [])
+            .map(item => typeof item === 'string' ? item.trim() : '')
+            .filter(Boolean)
+            .slice(0, 8);
+        if (!detail && steps.length === 0) return null;
+        return { detail: detail, steps: steps };
     }
 
     function normalizePlanResult(result) {
@@ -277,10 +291,6 @@
             summary: typeof source.summary === 'string' ? source.summary.trim() : '',
             recommendedFocus: typeof source.recommendedFocus === 'string' ? source.recommendedFocus.trim() : '',
             quickWin: typeof source.quickWin === 'string' ? source.quickWin.trim() : '',
-            questions: (Array.isArray(source.questions) ? source.questions : [])
-                .map(item => typeof item === 'string' ? item.trim() : '')
-                .filter(Boolean)
-                .slice(0, 5),
             taskSuggestions: (Array.isArray(source.taskSuggestions) ? source.taskSuggestions : [])
                 .map(normalizeTaskSuggestion)
                 .slice(0, 5)
@@ -581,6 +591,30 @@
     function notify(message) {
         if (typeof window.showToast === 'function') {
             window.showToast(message);
+        } else {
+            // Fallback toast notification if window.showToast doesn't exist
+            const toast = el('div', 'ast-toast', message);
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.background = 'var(--ast-card)';
+            toast.style.color = 'var(--ast-text)';
+            toast.style.padding = '10px 16px';
+            toast.style.borderRadius = '8px';
+            toast.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+            toast.style.zIndex = '10000';
+            toast.style.fontFamily = '"Lexend", sans-serif';
+            toast.style.fontSize = '14px';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
         }
     }
 
@@ -728,16 +762,59 @@
         return state.capture.result.taskSuggestions.find(item => item.id === suggestionId) || null;
     }
 
+    async function expandSuggestion(suggestionId) {
+        const suggestion = getSuggestionById(suggestionId);
+        if (!suggestion || suggestion.expanding) return;
+
+        if (suggestion.expanded) {
+            suggestion.expandCollapsed = !suggestion.expandCollapsed;
+            saveCapture();
+            render();
+            return;
+        }
+
+        suggestion.expanding = true;
+        suggestion.expandError = '';
+        saveCapture();
+        render();
+
+        try {
+            const result = await requestAssistantPlan({
+                mode: 'expand',
+                task: {
+                    title: suggestion.title,
+                    why: suggestion.why,
+                    steps: suggestion.steps.map(function(step) {
+                        return typeof step === 'string' ? step : (step && step.text) || '';
+                    }).filter(Boolean)
+                },
+                originalDump: state.capture && state.capture.draft ? state.capture.draft : ''
+            });
+
+            const normalized = normalizeExpanded(result);
+            if (!normalized) {
+                suggestion.expandError = 'Planner returned nothing useful.';
+            } else {
+                suggestion.expanded = normalized;
+            }
+            saveCapture();
+        } catch (err) {
+            suggestion.expandError = plannerErrorMessage(err);
+        } finally {
+            suggestion.expanding = false;
+            render();
+        }
+    }
+
     function addTaskFromSuggestion(suggestionId) {
         const suggestion = getSuggestionById(suggestionId);
         if (!suggestion || suggestion.addedTaskId) return;
 
-        const descriptionParts = [suggestion.description, suggestion.why].filter(Boolean);
         const taskId = makeTaskId();
         state.tasks.push(normalizeTask({
             id: taskId,
             title: suggestion.title,
-            description: descriptionParts.join('\n\n'),
+            description: suggestion.why || '',
             dueDate: suggestion.dueDate,
             steps: suggestion.steps.map(function(step, index) {
                 return {
@@ -990,41 +1067,27 @@
         const wrap = el('div', 'ast-plan-output');
 
         if (result.summary) {
-            const summary = el('div', 'ast-plan-panel');
-            summary.appendChild(el('div', 'ast-plan-label', 'What this sounds like'));
-            summary.appendChild(el('div', 'ast-plan-text', result.summary));
-            wrap.appendChild(summary);
+            wrap.appendChild(el('div', 'ast-plan-summary', result.summary));
         }
 
         if (result.recommendedFocus || result.quickWin) {
-            const row = el('div', 'ast-plan-callouts');
+            const row = el('div', 'ast-plan-chips');
 
             if (result.recommendedFocus) {
-                const focus = el('div', 'ast-plan-callout');
-                focus.appendChild(el('div', 'ast-plan-label', 'Do first'));
-                focus.appendChild(el('div', 'ast-plan-text', result.recommendedFocus));
+                const focus = el('div', 'ast-plan-chip ast-plan-chip-focus');
+                focus.appendChild(el('span', 'ast-plan-chip-label', 'Do first'));
+                focus.appendChild(el('span', 'ast-plan-chip-text', result.recommendedFocus));
                 row.appendChild(focus);
             }
 
             if (result.quickWin) {
-                const quickWin = el('div', 'ast-plan-callout');
-                quickWin.appendChild(el('div', 'ast-plan-label', 'Fastest win'));
-                quickWin.appendChild(el('div', 'ast-plan-text', result.quickWin));
+                const quickWin = el('div', 'ast-plan-chip ast-plan-chip-win');
+                quickWin.appendChild(el('span', 'ast-plan-chip-label', 'Quick win'));
+                quickWin.appendChild(el('span', 'ast-plan-chip-text', result.quickWin));
                 row.appendChild(quickWin);
             }
 
             wrap.appendChild(row);
-        }
-
-        if (result.questions.length > 0) {
-            const questions = el('div', 'ast-plan-panel');
-            questions.appendChild(el('div', 'ast-plan-label', 'Open questions'));
-            const list = el('div', 'ast-plan-question-list');
-            result.questions.forEach(function(question) {
-                list.appendChild(el('div', 'ast-plan-question', '• ' + question));
-            });
-            questions.appendChild(list);
-            wrap.appendChild(questions);
         }
 
         if (result.taskSuggestions.length > 0) {
@@ -1048,7 +1111,7 @@
 
                 const action = el(
                     'button',
-                    'ast-action-btn' + (suggestion.addedTaskId ? '' : ' ast-primary'),
+                    'ast-action-btn' + (suggestion.addedTaskId ? ' ast-action-btn-done' : ' ast-primary'),
                     suggestion.addedTaskId ? 'Added' : 'Add Task'
                 );
                 action.type = 'button';
@@ -1062,16 +1125,49 @@
                     card.appendChild(el('div', 'ast-plan-task-why', suggestion.why));
                 }
 
-                if (suggestion.description) {
-                    card.appendChild(el('div', 'ast-plan-task-description', suggestion.description));
-                }
-
                 if (suggestion.steps.length > 0) {
                     const stepList = el('div', 'ast-plan-step-list');
                     suggestion.steps.forEach(function(step) {
                         stepList.appendChild(el('div', 'ast-plan-step', '• ' + step));
                     });
                     card.appendChild(stepList);
+                }
+
+                const expandRow = el('div', 'ast-plan-expand-row');
+                const expandIsOpen = suggestion.expanded && !suggestion.expandCollapsed;
+                const expandBtnLabel = suggestion.expanding
+                    ? 'Thinking…'
+                    : (expandIsOpen ? 'Hide breakdown' : (suggestion.expanded ? 'Show breakdown' : 'Break it down more'));
+                const expandBtn = el(
+                    'button',
+                    'ast-action-btn ast-plan-expand-btn' + (expandIsOpen ? ' ast-plan-expand-btn-open' : ''),
+                    expandBtnLabel
+                );
+                expandBtn.type = 'button';
+                expandBtn.dataset.astAction = 'expand-suggestion';
+                expandBtn.dataset.suggestionId = suggestion.id;
+                expandBtn.disabled = !!suggestion.expanding;
+                expandRow.appendChild(expandBtn);
+                card.appendChild(expandRow);
+
+                if (suggestion.expandError) {
+                    card.appendChild(el('div', 'ast-plan-error', suggestion.expandError));
+                }
+
+                if (suggestion.expanded && !suggestion.expandCollapsed) {
+                    const detailBox = el('div', 'ast-plan-expanded');
+                    if (suggestion.expanded.detail) {
+                        detailBox.appendChild(el('div', 'ast-plan-expanded-detail', suggestion.expanded.detail));
+                    }
+                    if (suggestion.expanded.steps.length > 0) {
+                        detailBox.appendChild(el('div', 'ast-plan-label', 'Deeper steps'));
+                        const deeperList = el('div', 'ast-plan-step-list');
+                        suggestion.expanded.steps.forEach(function(step) {
+                            deeperList.appendChild(el('div', 'ast-plan-step', '• ' + step));
+                        });
+                        detailBox.appendChild(deeperList);
+                    }
+                    card.appendChild(detailBox);
                 }
 
                 list.appendChild(card);
@@ -1831,6 +1927,12 @@
         pendingFocusTarget = null;
 
         const shell = el('div', 'ast-shell');
+        
+        // Add back to top button
+        const backToTop = el('button', 'ast-back-to-top', '↑');
+        backToTop.type = 'button';
+        backToTop.dataset.astAction = 'back-to-top';
+        backToTop.title = 'Back to top';
 
         if (state.view === 'briefing') {
             // Briefing view: greeting + 1+2 cards + energy
@@ -1850,7 +1952,7 @@
             renderRoutine(shell);
         }
 
-        const children = [shell];
+        const children = [shell, backToTop];
         const picker = renderPicker();
         const modal = renderModal();
         if (picker) children.push(picker);
@@ -1859,6 +1961,9 @@
         host.replaceChildren(...children);
         updateBadge();
         restoreFocusTarget(focusTarget);
+        
+        // Setup scroll listener for back-to-top button
+        setupScrollListener();
     }
 
     function ensureHost() {
@@ -1918,6 +2023,9 @@
                 return true;
             case 'add-plan-task':
                 addTaskFromSuggestion(button.dataset.suggestionId);
+                return true;
+            case 'expand-suggestion':
+                expandSuggestion(button.dataset.suggestionId);
                 return true;
             case 'delete-task':
                 if (window.confirm('Delete this task?')) deleteTask(button.dataset.taskId);
@@ -2006,6 +2114,9 @@
             case 'save-modal-task':
                 saveModalTask();
                 return true;
+            case 'back-to-top':
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return true;
             default:
                 return false;
         }
@@ -2029,8 +2140,9 @@
         if (energyBar) {
             const rect = energyBar.getBoundingClientRect();
             const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-            const level = Math.min(ENERGY_MAX, Math.max(1, Math.ceil(ratio * ENERGY_MAX)));
-            setEnergyLevel(level);
+            const level = Math.ceil(ratio * ENERGY_MAX);
+            const safeLevel = Math.min(ENERGY_MAX, Math.max(1, level));
+            setEnergyLevel(safeLevel);
             return;
         }
 
@@ -2083,16 +2195,23 @@
             return;
         }
 
-        if (event.key !== 'Enter' || !state.modal || event.defaultPrevented) return;
+        if (event.key === 'Enter' && state.modal && !event.defaultPrevented) {
+            const target = event.target;
+            if (!target || !target.closest('.ast-modal')) return;
+            if (target.tagName === 'TEXTAREA') return;
+            if (target.type === 'checkbox' || target.type === 'radio') return;
+            
+            // Don't submit when inside step inputs unless it's the last one
+            if (target.classList.contains('ast-step-editor-input')) {
+                const stepInputs = document.querySelectorAll('.ast-step-editor-input');
+                if (stepInputs.length > 0 && target !== stepInputs[stepInputs.length - 1]) {
+                    return;
+                }
+            }
 
-        const target = event.target;
-        if (!target || !target.closest('.ast-modal')) return;
-        if (target.tagName === 'TEXTAREA') return;
-        if (target.tagName !== 'INPUT') return;
-        if (target.type === 'checkbox' || target.type === 'radio') return;
-
-        event.preventDefault();
-        saveModalTask();
+            event.preventDefault();
+            saveModalTask();
+        }
     }
 
     function attachEvents() {
@@ -2104,6 +2223,31 @@
         host.addEventListener('keydown', onKeyDown);
     }
 
+    function setupScrollListener() {
+        const backToTopBtn = host.querySelector('.ast-back-to-top');
+        if (!backToTopBtn) return;
+        
+        // Initial check
+        toggleBackToTopVisibility();
+        
+        // Remove any existing listener
+        document.removeEventListener('scroll', toggleBackToTopVisibility);
+        
+        // Add scroll listener
+        document.addEventListener('scroll', toggleBackToTopVisibility);
+    }
+    
+    function toggleBackToTopVisibility() {
+        const backToTopBtn = host && host.querySelector('.ast-back-to-top');
+        if (!backToTopBtn) return;
+        
+        if (window.scrollY > 300) {
+            backToTopBtn.classList.add('ast-visible');
+        } else {
+            backToTopBtn.classList.remove('ast-visible');
+        }
+    }
+    
     function exposeApi() {
         window.Assistant = {
             getDueCount: function() {

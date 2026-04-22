@@ -30,6 +30,77 @@
     var LOG_BUFFER_KEY = 'sec_log_buffer';
     var LOG_MAX_BUFFER = 50; // keep last 50 entries locally
 
+    // --- Sync Journal (Step 4) ---
+    var JOURNAL_KEY = 'sec_journal';
+    // We store pending writes as { id, key, data, timestamp }
+
+    // --- Validation Schemas (Step 3) ---
+    var SCHEMAS = {
+        'user_data': {
+            'type': 'object',
+            'required': ['key', 'value'],
+            'properties': {
+                'key': 'string',
+                'value': 'any'
+            }
+        }
+    };
+
+    // ================================================================
+    // VALIDATION (Step 3)
+    // ================================================================
+
+    function validateData(key, data) {
+        if (!data) return { ok: false, error: 'Empty data' };
+
+        // Simple type checking for now
+        if (key === 'user_data') {
+            if (typeof data.key !== 'string') return { ok: false, error: 'Invalid key type' };
+            if (data.value === undefined) return { ok: false, error: 'Value is required' };
+        }
+
+        return { ok: true };
+    }
+
+    // ================================================================
+    // SYNC JOURNAL (Step 4)
+    // ================================================================
+
+    function journalAdd(key, data) {
+        var journal = getJournal();
+        var entry = {
+            id: 'j_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+            key: key,
+            data: data,
+            timestamp: new Date().toISOString()
+        };
+        journal.push(entry);
+        saveJournal(journal);
+        updateHealth({ pendingWrites: journal.length });
+        return entry.id;
+    }
+
+    function journalRemove(id) {
+        var journal = getJournal().filter(function(entry) { return entry.id !== id; });
+        saveJournal(journal);
+        updateHealth({ pendingWrites: journal.length });
+    }
+
+    function getJournal() {
+        try {
+            var raw = localStorage.getItem(JOURNAL_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
+    }
+
+    function saveJournal(journal) {
+        try {
+            localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+        } catch (e) {
+            console.warn('[SecurityPod] Journal save failed:', e.message);
+        }
+    }
+
     // ================================================================
     // INSTALL — called once by the host app on startup
     // ================================================================
@@ -144,8 +215,14 @@
                 // Error = good, RLS is blocking
                 results.push({ test: 'user_data_anon_blocked', passed: true, reason: 'Anon read blocked: ' + anonError.message });
             } else if (!anonData || anonData.length === 0) {
-                // Empty result = RLS filtered everything out (also good)
-                results.push({ test: 'user_data_anon_blocked', passed: true, reason: 'Anon read returned 0 rows (RLS filtering)' });
+                // Empty result might be RLS filtering, but could also be an empty table.
+                // To be sure, try to INSERT something. This should always fail.
+                var { error: insError } = await anonClient.from('user_data').insert({ key: 'rls_probe', value: 'leak' });
+                if (insError) {
+                    results.push({ test: 'user_data_anon_blocked', passed: true, reason: 'Anon read returned 0 rows AND insert was blocked (Confirmed)' });
+                } else {
+                    results.push({ test: 'user_data_anon_blocked', passed: false, reason: 'CRITICAL: Anon client successfully inserted into user_data!' });
+                }
             } else {
                 // Got data back = BAD, RLS is not working
                 results.push({ test: 'user_data_anon_blocked', passed: false, reason: 'CRITICAL: Anon client read ' + anonData.length + ' rows from user_data!' });
@@ -383,6 +460,14 @@
     window.SecurityPod = {
         // Setup
         install: install,
+
+        // Step 3: Validation
+        validateData: validateData,
+
+        // Step 4: Sync Journal (Step 4)
+        journalAdd: journalAdd,
+        journalRemove: journalRemove,
+        getJournal: getJournal,
 
         // RLS verification
         probeRLS: probeRLS,

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://dtpcwammbcxdmhygwsth.supabase.co https://api.open-meteo.com https://air-quality-api.open-meteo.com; img-src 'self' data:; iframe-src https://calendar.google.com;">
     <title>Mission Control</title>
 
     <!-- PWA stuff — makes it installable on iPhone like a real app -->
@@ -1412,6 +1413,38 @@
             min-width: 30px;
         }
 
+        /* ===== SECURITY HEALTH BADGE (Step 5) ===== */
+        #security-health-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b5660;
+            margin-left: 10px;
+            vertical-align: middle;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        #security-health-badge.health-ok { 
+            background: #6bbf7b; 
+            box-shadow: 0 0 8px rgba(107, 191, 123, 0.4);
+        }
+        #security-health-badge.health-stale { 
+            background: #e8b84b; 
+            box-shadow: 0 0 8px rgba(232, 184, 75, 0.4);
+        }
+        #security-health-badge.health-error { 
+            background: #d4849a; 
+            box-shadow: 0 0 10px rgba(212, 132, 154, 0.6);
+            animation: health-pulse 2s infinite;
+        }
+        @keyframes health-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         /* ===== CYCLE TRACKER ===== */
         .cycle-flow-btns {
             display: flex;
@@ -2069,7 +2102,7 @@
 
     <!-- ====== HEADER ====== -->
     <div class="header">
-        <h1><span class="header-crown">👑</span>MISSION CONTROL</h1>
+        <h1><span class="header-crown">👑</span>MISSION CONTROL<span id="security-health-badge" title="Security Health: Unknown"></span></h1>
         <div class="date" id="today-date"></div>
         <div class="time" id="current-time"></div>
     </div>
@@ -3833,6 +3866,16 @@
         // Each save also records a timestamp so we can resolve cloud vs local conflicts.
         var _syncTimers = {};
         function saveData(key, value) {
+            // Step 3: Security Pod Input Validation
+            if (window.SecurityPod) {
+                const v = SecurityPod.validateData('user_data', { key: key, value: value });
+                if (!v.ok) {
+                    console.error('[SecurityPod] Validation FAILED for key:', key, v.error);
+                    setStatus('error', 'Security check failed: ' + v.error);
+                    return;
+                }
+            }
+
             // Save locally first (instant, no waiting)
             localStorage.setItem('mc_' + key, JSON.stringify(value));
             // Record when this key was last changed locally (for conflict resolution)
@@ -3848,6 +3891,12 @@
 
         // --- Push one key to Supabase (runs in background, won't block the page) ---
         async function syncToCloud(key, value) {
+            // Step 4: Sync Journal entry
+            let jid = null;
+            if (window.SecurityPod) {
+                jid = SecurityPod.journalAdd(key, value);
+            }
+
             try {
                 const { data: { user } } = await supabaseClient.auth.getUser();
                 if (!user) {
@@ -3869,6 +3918,8 @@
                     if (window.SecurityPod) SecurityPod.reportSyncError('up', error.message);
                 } else {
                     console.log('SYNC OK:', key);
+                    // Success! Remove from journal and report
+                    if (jid && window.SecurityPod) SecurityPod.journalRemove(jid);
                     if (window.SecurityPod) SecurityPod.reportSyncUp();
                 }
             } catch (err) {
@@ -7711,6 +7762,24 @@
         // 3. If this is your first cloud login, migrates existing local data up
         // 4. Then launches everything like normal
 
+        // --- Step 5: Refresh Health Badge UI ---
+        function refreshHealthUI(health) {
+            const badge = document.getElementById('security-health-badge');
+            if (!badge) return;
+
+            badge.className = 'health-' + health.overall;
+            
+            let title = 'Security Health: ' + health.overall.toUpperCase();
+            if (health.rlsStatus === 'failed') title += ' \u00b7 RLS PROBE FAILED';
+            if (health.auth === 'failed') title += ' \u00b7 Auth Error';
+            if (health.pendingWrites > 0) title += ' \u00b7 ' + health.pendingWrites + ' pending syncs';
+            if (health.syncUp) {
+                const ageMin = Math.round((Date.now() - new Date(health.syncUp).getTime()) / 60000);
+                title += ' \u00b7 Last sync: ' + (ageMin < 1 ? 'just now' : ageMin + 'm ago');
+            }
+            badge.title = title;
+        }
+
         async function initApp() {
             // Step 0: Install security pod (catches errors from this point on)
             if (window.SecurityPod) {
@@ -7719,8 +7788,17 @@
                     supabaseUrl: SUPABASE_URL,
                     supabaseAnonKey: SUPABASE_ANON_KEY,
                     setStatus: setStatus,
-                    onHealthChange: null // will wire up when health badge is built
+                    onHealthChange: refreshHealthUI
                 });
+                
+                // Trigger initial health check UI
+                refreshHealthUI(SecurityPod.getHealth());
+
+                // Run RLS probe in background
+                SecurityPod.probeRLS();
+
+                // Flush any buffered logs from last session
+                SecurityPod.flushLogs();
             }
 
             // Step 1: Check if logged in — redirect to login if not
