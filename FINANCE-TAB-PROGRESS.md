@@ -9,7 +9,7 @@ Current position: **Phase 0, Step 0.5 — Google OAuth setup in progress**
 ## Overall Progress
 
 ```
-Phase 0 — Scorched Earth      [#####               ]   5 / 6 steps
+Phase 0 — Scorched Earth      [######              ]   6 / 6 steps ✓ DONE
 Phase 1 — Lock the Database   [                    ]   0 / 3 steps
 Phase 2 — Build Sync Tool     [                    ]   0 / 5 steps
 Phase 3 — Dashboard Wiring    [                    ]   0 / 4 steps
@@ -19,7 +19,7 @@ Phase 6 — Ops Hardening       [                    ]   0 / 5 steps
 Phase 7 — Service Worker      [                    ]   0 / 1 step
 ```
 
-**Total: 5 / 32 steps complete.**
+**Total: 6 / 32 steps complete.**
 
 Full plan: `FINANCE-TAB-MASTER-PLAN-GLM.md`
 Your UUID (fill in): `___________________________________`
@@ -60,14 +60,11 @@ Cloud never sees bank data again. If GitHub gets hacked, the attacker gets nothi
 ### Steps
 
 - [x] **0.0 Get your Supabase UUID** — DONE 2026-04-21 via Supabase Dashboard (written on paper)
-- [ ] **0.1 Rotate Supabase service key**
-      → Supabase Dashboard → Project Settings → API → Rotate service role key
-- [ ] **0.2 Delete GitHub secrets** (Actions + Deploy Keys + Environments)
-- [ ] **0.3 Delete workflow file** + (flag) delete `scripts/sync_bank_data.py`
-- [ ] **0.4 Purge historical Actions logs** (leaked balances live here)
-- [ ] **0.5 Disable Supabase signups**
-      → Verify you can still log in BEFORE leaving the page
-      → Save Supabase login somewhere off-laptop
+- [x] **0.1 Rotate Supabase service key** — DONE 2026-04-22 (new Secret key, written on paper)
+- [x] **0.2 Delete GitHub secrets** — DONE 2026-04-22 (SUPABASE_SERVICE_KEY + SUPABASE_URL deleted)
+- [x] **0.3 Delete workflow file + sync_bank_data.py** — DONE 2026-04-22 (committed + pushed)
+- [x] **0.4 Purge historical Actions logs** — DONE 2026-04-22 (86 runs deleted)
+- [x] **0.5 Google OAuth set up + login page updated** — DONE 2026-04-22 (Google button live, tested working)
 - [ ] **0.6 Stub the Bank tab** — replace with "Bank sync is local-only" message
 
 **Exit check:** No bank creds in any cloud. Old service key dead. Old logs gone. UUID on paper. Can still log into Supabase.
