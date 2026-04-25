@@ -8090,15 +8090,18 @@
         // Click the wand and sparkles rain down over the ENTIRE page
         // like Cinderella's fairy godmother just blessed your whole screen
 
-        const APP_VERSION = 'v2.9.3 — 2026-04-24';
+        const APP_VERSION = 'v2.9.4 — 2026-04-25';
         const RAIN_CHARS = ['✨','⭐','💫','🌟','🦋','💖','💜','🔮','👑','🌙','⋆','˚','✧'];
         const RAIN_COLORS = ['#d4849a', '#e8b84b', '#ffffff', '#b48db5', '#f0c4d4', '#c87a90', '#daa0d0'];
         const WAND_RAIN_CONFIG = {
             totalSparkles: 54,
-            immediateSparkles: 18,
-            cascadeDurationMs: 700,
+            immediateTopSparkles: 10,
+            immediateScreenSparkles: 16,
+            cascadeDurationMs: 650,
             visibleBandTopPx: 12,
             visibleBandHeightPx: 78,
+            screenSeedTopPx: 36,
+            screenSeedHeightFactor: 0.58,
             offscreenBandMinPx: -36,
             offscreenBandMaxPx: -8,
             fontSizeMinPx: 12,
@@ -8123,11 +8126,28 @@
             wandCastResetTimer = setTimeout(() => wand.classList.remove('is-casting'), 450);
         }
 
-        function spawnRainSparkle(screenW, screenH, startVisible) {
+        function randomBetween(min, max) {
+            return min + Math.random() * (max - min);
+        }
+
+        function spawnRainSparkle(screenW, screenH, mode) {
             const spark = document.createElement('span');
-            const startTop = startVisible
-                ? WAND_RAIN_CONFIG.visibleBandTopPx + Math.random() * WAND_RAIN_CONFIG.visibleBandHeightPx
-                : WAND_RAIN_CONFIG.offscreenBandMinPx + Math.random() * (WAND_RAIN_CONFIG.offscreenBandMaxPx - WAND_RAIN_CONFIG.offscreenBandMinPx);
+            let startTop;
+
+            if (mode === 'screen') {
+                startTop = randomBetween(
+                    WAND_RAIN_CONFIG.screenSeedTopPx,
+                    Math.max(WAND_RAIN_CONFIG.screenSeedTopPx + 1, screenH * WAND_RAIN_CONFIG.screenSeedHeightFactor)
+                );
+            } else if (mode === 'top') {
+                startTop = randomBetween(
+                    WAND_RAIN_CONFIG.visibleBandTopPx,
+                    WAND_RAIN_CONFIG.visibleBandTopPx + WAND_RAIN_CONFIG.visibleBandHeightPx
+                );
+            } else {
+                startTop = randomBetween(WAND_RAIN_CONFIG.offscreenBandMinPx, WAND_RAIN_CONFIG.offscreenBandMaxPx);
+            }
+
             const fallDurationMs = WAND_RAIN_CONFIG.fallDurationMinMs + Math.random() * WAND_RAIN_CONFIG.fallDurationVarianceMs;
             const fallDist = (screenH - startTop) + WAND_RAIN_CONFIG.fallDistancePaddingPx + Math.random() * WAND_RAIN_CONFIG.fallDistanceVariancePx;
 
@@ -8159,12 +8179,18 @@
             const runId = activeWandRainRun;
             const screenW = window.innerWidth;
             const screenH = window.innerHeight;
-            const immediateSparkles = Math.min(WAND_RAIN_CONFIG.immediateSparkles, WAND_RAIN_CONFIG.totalSparkles);
+            const requestedImmediateSparkles =
+                WAND_RAIN_CONFIG.immediateTopSparkles + WAND_RAIN_CONFIG.immediateScreenSparkles;
+            const immediateSparkles = Math.min(requestedImmediateSparkles, WAND_RAIN_CONFIG.totalSparkles);
             const trailingSparkles = WAND_RAIN_CONFIG.totalSparkles - immediateSparkles;
             let spawned = 0;
 
+            for (; spawned < WAND_RAIN_CONFIG.immediateTopSparkles && spawned < immediateSparkles; spawned++) {
+                spawnRainSparkle(screenW, screenH, 'top');
+            }
+
             for (; spawned < immediateSparkles; spawned++) {
-                spawnRainSparkle(screenW, screenH, true);
+                spawnRainSparkle(screenW, screenH, 'screen');
             }
 
             if (trailingSparkles <= 0) return;
@@ -8179,7 +8205,7 @@
                 const targetSpawned = immediateSparkles + Math.floor(progress * trailingSparkles);
 
                 while (spawned < targetSpawned) {
-                    spawnRainSparkle(screenW, screenH, false);
+                    spawnRainSparkle(screenW, screenH, 'offscreen');
                     spawned += 1;
                 }
 
@@ -8228,7 +8254,7 @@
             // Register SW and force it to check for updates every page load
             navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('Service worker registered (' + APP_VERSION + ', cache v23)');
+                    console.log('Service worker registered (' + APP_VERSION + ', cache v24)');
                     // Force check for new version right now
                     reg.update();
                 })
