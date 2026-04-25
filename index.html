@@ -2043,11 +2043,19 @@
             position: fixed;
             top: 12px;
             right: 62px;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            appearance: none;
+            -webkit-appearance: none;
+            line-height: 1;
             font-size: 32px;
             z-index: 50;
             cursor: pointer;
             filter: drop-shadow(0 2px 8px rgba(212, 132, 154, 0.4));
-            transition: transform 0.2s;
+            transition: transform 0.18s ease, filter 0.18s ease;
+            transform-origin: 70% 80%;
+            touch-action: manipulation;
             user-select: none;
         }
 
@@ -2058,6 +2066,17 @@
 
         .magic-wand:active {
             transform: scale(0.95) rotate(15deg);
+        }
+
+        .magic-wand.is-casting {
+            animation: wand-cast 420ms ease-out;
+        }
+
+        @keyframes wand-cast {
+            0% { transform: scale(1) rotate(0deg); }
+            22% { transform: scale(1.08) rotate(-18deg); }
+            58% { transform: scale(0.96) rotate(20deg); }
+            100% { transform: scale(1) rotate(0deg); }
         }
 
         /* ===== MOBILE RESPONSIVE — phones 600px and under ===== */
@@ -2173,7 +2192,7 @@
     <div class="corner-dog" title="Good boy. 🐾">🐶</div>
 
     <!-- ====== MAGIC WAND — bippity boppity boo ====== -->
-    <div class="magic-wand" title="✨ Bippity Boppity Boo ✨" onclick="bippityBoppityBoo()">🪄</div>
+    <button class="magic-wand" id="magic-wand" type="button" title="✨ Bippity Boppity Boo ✨" aria-label="Cast sparkles">🪄</button>
 
     <!-- ====== HEADER ====== -->
     <div class="header">
@@ -8071,47 +8090,122 @@
         // Click the wand and sparkles rain down over the ENTIRE page
         // like Cinderella's fairy godmother just blessed your whole screen
 
+        const APP_VERSION = 'v2.9.3 — 2026-04-24';
         const RAIN_CHARS = ['✨','⭐','💫','🌟','🦋','💖','💜','🔮','👑','🌙','⋆','˚','✧'];
+        const RAIN_COLORS = ['#d4849a', '#e8b84b', '#ffffff', '#b48db5', '#f0c4d4', '#c87a90', '#daa0d0'];
+        const WAND_RAIN_CONFIG = {
+            totalSparkles: 54,
+            immediateSparkles: 18,
+            cascadeDurationMs: 700,
+            visibleBandTopPx: 12,
+            visibleBandHeightPx: 78,
+            offscreenBandMinPx: -36,
+            offscreenBandMaxPx: -8,
+            fontSizeMinPx: 12,
+            fontSizeVariancePx: 22,
+            horizontalDriftPx: 60,
+            fallDistancePaddingPx: 70,
+            fallDistanceVariancePx: 100,
+            fallDurationMinMs: 1200,
+            fallDurationVarianceMs: 1100,
+            cleanupPadMs: 300
+        };
+        let wandCastResetTimer = null;
+        let activeWandRainFrame = null;
+        let activeWandRainRun = 0;
 
-        function bippityBoppityBoo() {
+        function flickMagicWand(wand) {
+            if (!wand) return;
+            clearTimeout(wandCastResetTimer);
+            wand.classList.remove('is-casting');
+            void wand.offsetWidth;
+            wand.classList.add('is-casting');
+            wandCastResetTimer = setTimeout(() => wand.classList.remove('is-casting'), 450);
+        }
+
+        function spawnRainSparkle(screenW, screenH, startVisible) {
+            const spark = document.createElement('span');
+            const startTop = startVisible
+                ? WAND_RAIN_CONFIG.visibleBandTopPx + Math.random() * WAND_RAIN_CONFIG.visibleBandHeightPx
+                : WAND_RAIN_CONFIG.offscreenBandMinPx + Math.random() * (WAND_RAIN_CONFIG.offscreenBandMaxPx - WAND_RAIN_CONFIG.offscreenBandMinPx);
+            const fallDurationMs = WAND_RAIN_CONFIG.fallDurationMinMs + Math.random() * WAND_RAIN_CONFIG.fallDurationVarianceMs;
+            const fallDist = (screenH - startTop) + WAND_RAIN_CONFIG.fallDistancePaddingPx + Math.random() * WAND_RAIN_CONFIG.fallDistanceVariancePx;
+
+            spark.className = 'sparkle-rain';
+            spark.textContent = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
+            spark.style.left = (Math.random() * screenW) + 'px';
+            spark.style.top = startTop + 'px';
+            spark.style.setProperty('--fall-dist', fallDist + 'px');
+            spark.style.fontSize = (WAND_RAIN_CONFIG.fontSizeMinPx + Math.random() * WAND_RAIN_CONFIG.fontSizeVariancePx) + 'px';
+            spark.style.color = RAIN_COLORS[Math.floor(Math.random() * RAIN_COLORS.length)];
+            spark.style.animationDuration = (fallDurationMs / 1000) + 's';
+            spark.style.marginLeft = ((WAND_RAIN_CONFIG.horizontalDriftPx / -2) + Math.random() * WAND_RAIN_CONFIG.horizontalDriftPx) + 'px';
+
+            document.body.appendChild(spark);
+            setTimeout(() => spark.remove(), fallDurationMs + WAND_RAIN_CONFIG.cleanupPadMs);
+        }
+
+        function cancelWandRainSequence() {
+            activeWandRainRun += 1;
+            if (activeWandRainFrame !== null) {
+                cancelAnimationFrame(activeWandRainFrame);
+                activeWandRainFrame = null;
+            }
+        }
+
+        function startWandRainSequence() {
+            cancelWandRainSequence();
+
+            const runId = activeWandRainRun;
             const screenW = window.innerWidth;
             const screenH = window.innerHeight;
-            const totalSparkles = 60; // how many particles rain down
+            const immediateSparkles = Math.min(WAND_RAIN_CONFIG.immediateSparkles, WAND_RAIN_CONFIG.totalSparkles);
+            const trailingSparkles = WAND_RAIN_CONFIG.totalSparkles - immediateSparkles;
+            let spawned = 0;
 
-            // Stagger them so they don't all drop at once — like real magic dust
-            for (let i = 0; i < totalSparkles; i++) {
-                setTimeout(() => {
-                    const spark = document.createElement('span');
-                    spark.className = 'sparkle-rain';
-                    spark.textContent = RAIN_CHARS[Math.floor(Math.random() * RAIN_CHARS.length)];
-
-                    // Start somewhere random across the top of the screen
-                    spark.style.left = (Math.random() * screenW) + 'px';
-                    spark.style.top = (-20 + Math.random() * -40) + 'px'; // just above viewport
-
-                    // How far it falls (most of the screen height + some)
-                    const fallDist = screenH + 50 + Math.random() * 100;
-                    spark.style.setProperty('--fall-dist', fallDist + 'px');
-
-                    // Random size — some big sparkles, some tiny dust
-                    spark.style.fontSize = (12 + Math.random() * 22) + 'px';
-
-                    // Princess colors: rose, gold, white, lavender, pink
-                    const colors = ['#d4849a', '#e8b84b', '#ffffff', '#b48db5', '#f0c4d4', '#c87a90', '#daa0d0'];
-                    spark.style.color = colors[Math.floor(Math.random() * colors.length)];
-
-                    // Random fall speed — some fast, some slow and floaty
-                    spark.style.animationDuration = (1.5 + Math.random() * 2) + 's';
-
-                    // Slight horizontal drift so they don't fall straight down
-                    spark.style.marginLeft = (-30 + Math.random() * 60) + 'px';
-
-                    document.body.appendChild(spark);
-
-                    // Clean up after it falls off screen
-                    setTimeout(() => spark.remove(), 4000);
-                }, i * 40); // 40ms between each sparkle = nice cascading rain
+            for (; spawned < immediateSparkles; spawned++) {
+                spawnRainSparkle(screenW, screenH, true);
             }
+
+            if (trailingSparkles <= 0) return;
+
+            const startedAt = performance.now();
+
+            function tick(now) {
+                if (runId !== activeWandRainRun) return;
+
+                const elapsed = now - startedAt;
+                const progress = Math.min(1, elapsed / WAND_RAIN_CONFIG.cascadeDurationMs);
+                const targetSpawned = immediateSparkles + Math.floor(progress * trailingSparkles);
+
+                while (spawned < targetSpawned) {
+                    spawnRainSparkle(screenW, screenH, false);
+                    spawned += 1;
+                }
+
+                if (spawned < WAND_RAIN_CONFIG.totalSparkles) {
+                    activeWandRainFrame = requestAnimationFrame(tick);
+                } else {
+                    activeWandRainFrame = null;
+                }
+            }
+
+            activeWandRainFrame = requestAnimationFrame(tick);
+        }
+
+        function bippityBoppityBoo() {
+            const wand = document.getElementById('magic-wand');
+            if (wand) {
+                flickMagicWand(wand);
+                const wandPos = getCenter(wand);
+                spawnSparkles(wandPos.x, wandPos.y, 20);
+            }
+            startWandRainSequence();
+        }
+
+        const magicWandButton = document.getElementById('magic-wand');
+        if (magicWandButton) {
+            magicWandButton.addEventListener('click', bippityBoppityBoo);
         }
 
     </script>
@@ -8119,14 +8213,22 @@
     <!-- Assistant pod — all task management logic -->
     <script src="assistant.js"></script>
 
+    <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
+    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;"></div>
+
     <!-- Register the service worker — makes the app installable + offline-capable -->
     <script>
+        const appVersionEl = document.getElementById('app-version');
+        if (appVersionEl) {
+            appVersionEl.textContent = APP_VERSION;
+        }
+
         if ('serviceWorker' in navigator) {
             let swReloading = false; // prevent infinite reload loop
             // Register SW and force it to check for updates every page load
             navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
                 .then(reg => {
-                    console.log('Service worker registered (cache v11)');
+                    console.log('Service worker registered (' + APP_VERSION + ', cache v23)');
                     // Force check for new version right now
                     reg.update();
                 })
@@ -8140,9 +8242,6 @@
             });
         }
     </script>
-
-    <!-- Version tag — tiny text at bottom so we can confirm which version is running -->
-    <div id="app-version" style="text-align:center; color:#6b5660; font-size:10px; padding:4px 0; opacity:0.5;">v2.9.2 — 2026-03-03</div>
 
 </body>
 </html>
