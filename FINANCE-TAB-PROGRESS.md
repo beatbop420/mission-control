@@ -26,6 +26,18 @@ Your UUID (fill in): `___________________________________`
 
 ---
 
+## Critical Share Blocker
+
+Do **not** share the real Mission Control URL with outside people until the auth/RLS path is hardened and re-tested.
+
+Fix before external sharing:
+- lock down `bank_cache` / replacement finance table so authenticated strangers cannot read it
+- fix the Security Pod probe so "0 rows" does **not** count as a successful security check
+- verify Supabase auth/signup settings are restricted the way you intend
+- run a broader RLS audit on user-facing tables before treating the live app as safe to show outsiders
+
+---
+
 ## What this whole thing does (caveman summary)
 
 Right now your bank data rides through GitHub (bad) → Supabase cloud (also bad). Anybody who grabs your GitHub secrets could read your balances.

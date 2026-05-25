@@ -2606,425 +2606,18 @@
     </div><!-- /tab-life part 1 -->
 
     <!-- ====== TAB: MONEY ====== -->
+    <!-- Money pod mounts here — old tab archived in finance-archive/ -->
     <div class="tab-page" id="tab-money">
     <div class="grid">
-
-        <!-- -------- MONEY -------- -->
-        <div class="card full-width">
-            <h2>Money</h2>
-
-            <!-- Finance management system (always visible — has its own tab now) -->
-            <div id="finance-expanded" style="display:block;">
-
-                <!-- Claudette first — emotional regulation before numbers -->
-                <div id="mc-greeting" style="background:linear-gradient(135deg,#251c21,#2e2228); border-radius:14px; padding:20px 22px; margin:14px 0 16px 0; border-left:4px solid #e8b84b;">
-                    <div id="mc-greeting-text" style="font-size:17px; color:#f0eae8; line-height:1.6; font-weight:500;">loading...</div>
-                    <div id="mc-status-line" style="font-size:13px; color:#9a8a92; margin-top:6px;"></div>
-                </div>
-
-                <!-- Summary bar with more detail -->
-                <div class="finance-summary" style="margin-top: 14px;">
-                    <div class="finance-summary-box">
-                        <div class="fs-label">Bank Says</div>
-                        <div class="fs-value" id="fin-checking-balance">$0.00</div>
-                    </div>
-                    <div class="finance-summary-box">
-                        <div class="fs-label">Still Coming Up</div>
-                        <div class="fs-value bills-due" id="fin-unpaid-bills">$0.00</div>
-                    </div>
-                    <div class="finance-summary-box">
-                        <div class="fs-label">Spendable</div>
-                        <div class="fs-value" id="fin-spendable-detail">$0.00</div>
-                    </div>
-                </div>
-
-                <div class="bank-snapshot-intro" id="bank-balance-intro"></div>
-                <div class="bank-snapshot" id="bank-balance-strip"></div>
-
-                <!-- Overdue warning — only shows if something is past due -->
-                <div class="alert-row level-red" id="fin-overdue-alert" style="display:none;">
-                    <span class="alert-icon">🚨</span>
-                    <div class="alert-body">
-                        <span class="alert-text" id="fin-overdue-text">You have overdue bills!</span>
-                    </div>
-                </div>
-
-                <!-- Tab buttons — Advisor is default, the "what do I do" view -->
-                <div class="finance-tabs">
-                    <button class="finance-tab active" onclick="showFinanceTab('brain', this)" style="background:#d4849a; border-color:#d4849a; color:#fff; font-weight:600;">🧠 Brain</button>
-                    <button class="finance-tab" onclick="showFinanceTab('advisor', this)">Advisor</button>
-                    <button class="finance-tab" onclick="showFinanceTab('stove', this)">Stove</button>
-                    <button class="finance-tab" onclick="showFinanceTab('timeline', this)">Timeline</button>
-                    <button class="finance-tab" onclick="showFinanceTab('ledger', this)">Ledger</button>
-                    <button class="finance-tab" onclick="showFinanceTab('bills', this)">Bills</button>
-                    <button class="finance-tab" onclick="showFinanceTab('accounts', this)">Accounts</button>
-                    <button class="finance-tab" onclick="showFinanceTab('buckets', this)">Buckets</button>
-                    <button class="finance-tab" onclick="showFinanceTab('debt', this)">Debt</button>
-                    <button class="finance-tab" onclick="showFinanceTab('income', this)">Income</button>
-                    <button class="finance-tab" onclick="showFinanceTab('log', this)">Log</button>
-                    <button class="finance-tab" onclick="showFinanceTab('budget', this)">Budget</button>
-                    <button class="finance-tab" onclick="showFinanceTab('spending', this)">Spending</button>
-                </div>
-
-                <!-- ===== FINANCE BRAIN — Miss Claudette morning briefing ===== -->
-                <div class="finance-panel active" id="fin-panel-brain">
-
-                    <!-- Checking + Savings balances -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; text-align:center;">
-                            <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Checking</div>
-                            <div id="mc-checking" style="font-size:22px; font-weight:700; color:#f0eae8;">$—</div>
-                        </div>
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; text-align:center;">
-                            <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Savings</div>
-                            <div id="mc-savings" style="font-size:22px; font-weight:700; color:#b48db5;">$—</div>
-                        </div>
-                    </div>
-
-                    <!-- Payday countdown -->
-                    <div style="background:#1a1216; border-radius:10px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:13px; color:#9a8a92;">next payday</span>
-                        <span id="mc-payday-text" style="font-size:15px; font-weight:600; color:#d4ccc8;">—</span>
-                    </div>
-
-                    <!-- This week's bills -->
-                    <div style="margin-bottom:16px;">
-                        <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">this week</div>
-                        <div id="mc-bills-list"><p style="color:#6b5660; font-size:13px;">loading...</p></div>
-                    </div>
-
-                    <!-- Allowances -->
-                    <div style="margin-bottom:14px;">
-                        <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">your money</div>
-                        <div id="mc-allowances"></div>
-                    </div>
-
-                    <!-- Sync note + manual pending ACH -->
-                    <div style="text-align:center; margin-top:8px;">
-                        <span id="mc-sync-note" style="font-size:11px; color:#6b5660;"></span>
-                        <span style="font-size:11px; color:#3d2f35;"> · </span>
-                        <button class="inline-refresh-btn" onclick="refreshBankData()" style="padding:3px 9px;">Refresh Bank</button>
-                        <span style="font-size:11px; color:#3d2f35;"> · </span>
-                        <span id="brain-manual-pending-val" style="font-size:11px; color:#6b5660; cursor:pointer; text-decoration:underline dotted;" onclick="setManualPending()">pending ACH: tap to set</span>
-                    </div>
-
-                    <!-- Hidden compat elements — paycheck confirm reads these -->
-                    <div id="brain-sts" style="display:none;"></div>
-                    <div id="brain-sts-sub" style="display:none;"></div>
-                    <div id="brain-bills-list-hidden" style="display:none;"></div>
-                    <div id="brain-funds-list" style="display:none;"></div>
-                    <div id="brain-alert" style="display:none;"></div>
-                </div>
-
-                <!-- ===== SMART ADVISOR — "What do I do this week?" ===== -->
-                <div class="finance-panel" id="fin-panel-advisor">
-                    <div id="fin-advisor-content">
-                        <p style="color:#6b5660; font-size:13px; padding:10px 0;">Loading advisor...</p>
-                    </div>
-                </div>
-
-                <!-- ===== ROLLING TIMELINE — 4-week moving view ===== -->
-                <div class="finance-panel" id="fin-panel-timeline">
-                    <div class="timeline-wrap" id="fin-timeline-grid"></div>
-                </div>
-
-                <!-- ===== ANNUAL LEDGER — Month-by-month overview ===== -->
-                <div class="finance-panel" id="fin-panel-ledger">
-                    <div class="ledger-wrap" id="fin-ledger-table"></div>
-                </div>
-
-                <!-- ===== CHECK THE STOVE — The anxiety reset page ===== -->
-                <!-- Single screen. No scrolling. Just the numbers you need to stop worrying. -->
-                <div class="finance-panel" id="fin-panel-stove">
-                    <div style="text-align:center; padding:8px 0 16px;">
-                        <p style="font-size:13px; color:#9a8a92; font-style:italic;">Everything is fine. Here's the proof.</p>
-                    </div>
-
-                    <!-- The big 5 numbers — the only things that matter right now -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
-                        <div style="background:#1a1216; border-radius:10px; padding:16px; text-align:center; border-left:3px solid #b48db5;">
-                            <div style="font-size:11px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Safe to Spend (Life)</div>
-                            <div style="font-size:28px; font-weight:700;" id="stove-life">$0</div>
-                        </div>
-                        <div style="background:#1a1216; border-radius:10px; padding:16px; text-align:center; border-left:3px solid #e8b84b;">
-                            <div style="font-size:11px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Dopamine Left</div>
-                            <div style="font-size:28px; font-weight:700;" id="stove-dopamine">$0</div>
-                        </div>
-                    </div>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; text-align:center;">
-                            <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Bills Covered Through</div>
-                            <div style="font-size:18px; font-weight:600; color:#d4ccc8;" id="stove-bills-covered">—</div>
-                        </div>
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; text-align:center;">
-                            <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Safety Net</div>
-                            <div style="font-size:18px; font-weight:600; color:#d4ccc8;" id="stove-safety">$0</div>
-                        </div>
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; text-align:center;">
-                            <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Next Payday In</div>
-                            <div style="font-size:18px; font-weight:600; color:#d4ccc8;" id="stove-payday">— days</div>
-                        </div>
-                    </div>
-
-                    <!-- Status line — one sentence summary -->
-                    <div id="stove-status" style="text-align:center; padding:12px; background:rgba(78,204,163,0.08); border-left:3px solid #b48db5; border-radius:6px; font-size:14px; color:#d4ccc8;">
-                        Add your accounts to see status.
-                    </div>
-
-                    <!-- Past due warning — only shows if something is past due -->
-                    <div id="stove-past-due" style="display:none; margin-top:10px; padding:12px; background:rgba(233,69,96,0.08); border-left:3px solid #d4849a; border-radius:6px; font-size:13px; color:#d4849a;">
-                    </div>
-
-                    <!-- Quick action: log paycheck -->
-                    <button class="finance-add-btn" onclick="openPaycheckForm()" style="margin-top:14px;">💰 Log Paycheck</button>
-                </div>
-
-                <!-- ===== BUCKETS — The Four Bucket System ===== -->
-                <!-- Fixed / Life / Dopamine / Safety — money flows in this order -->
-                <div class="finance-panel" id="fin-panel-buckets">
-                    <p style="font-size:12px; color:#9a8a92; margin-bottom:12px;">Income flows: <strong style="color:#d4849a;">Fixed</strong> → <strong style="color:#b48db5;">Safety</strong> → <strong style="color:#e8b84b;">Life</strong> → <strong style="color:#BA55D3;">Dopamine</strong></p>
-
-                    <!-- The four bucket cards -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
-                        <!-- FIXED bucket -->
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; border-left:3px solid #d4849a;">
-                            <div style="font-size:11px; color:#d4849a; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Fixed</div>
-                            <div style="font-size:10px; color:#9a8a92; margin-bottom:8px;">Mortgage, utilities, insurance, court. Auto-pay only.</div>
-                            <div style="font-size:24px; font-weight:700; color:#d4ccc8;" id="bucket-fixed-balance">$0</div>
-                            <div style="font-size:11px; color:#9a8a92; margin-top:4px;" id="bucket-fixed-needed">Needed: $0</div>
-                            <div style="width:100%; height:6px; background:#3d2f35; border-radius:3px; margin-top:6px; overflow:hidden;">
-                                <div id="bucket-fixed-bar" style="height:100%; background:#d4849a; border-radius:3px; width:0%; transition:width 0.3s;"></div>
-                            </div>
-                            <div style="font-size:10px; margin-top:4px;" id="bucket-fixed-status"></div>
-                        </div>
-
-                        <!-- SAFETY bucket -->
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; border-left:3px solid #b48db5;">
-                            <div style="font-size:11px; color:#b48db5; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Safety</div>
-                            <div style="font-size:10px; color:#9a8a92; margin-bottom:8px;">Emergency fund. Car, vet, chaos. NO debit access.</div>
-                            <div style="font-size:24px; font-weight:700; color:#d4ccc8;" id="bucket-safety-balance">$0</div>
-                            <div style="font-size:11px; color:#9a8a92; margin-top:4px;" id="bucket-safety-goal">Goal: $0</div>
-                        </div>
-
-                        <!-- LIFE bucket -->
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; border-left:3px solid #e8b84b;">
-                            <div style="font-size:11px; color:#e8b84b; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Life</div>
-                            <div style="font-size:10px; color:#9a8a92; margin-bottom:8px;">Groceries, gas, pet food, household essentials.</div>
-                            <div style="font-size:24px; font-weight:700; color:#d4ccc8;" id="bucket-life-balance">$0</div>
-                            <div style="width:100%; height:6px; background:#3d2f35; border-radius:3px; margin-top:6px; overflow:hidden;">
-                                <div id="bucket-life-bar" style="height:100%; background:#e8b84b; border-radius:3px; width:100%; transition:width 0.3s;"></div>
-                            </div>
-                            <div style="font-size:10px; margin-top:4px;" id="bucket-life-status"></div>
-                        </div>
-
-                        <!-- DOPAMINE bucket -->
-                        <div style="background:#1a1216; border-radius:10px; padding:14px; border-left:3px solid #BA55D3;">
-                            <div style="font-size:11px; color:#BA55D3; text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px;">Dopamine</div>
-                            <div style="font-size:10px; color:#9a8a92; margin-bottom:8px;">Eating out, plants, nails, fun. Hard stop when empty.</div>
-                            <div style="font-size:24px; font-weight:700; color:#d4ccc8;" id="bucket-dopamine-balance">$0</div>
-                            <div style="width:100%; height:6px; background:#3d2f35; border-radius:3px; margin-top:6px; overflow:hidden;">
-                                <div id="bucket-dopamine-bar" style="height:100%; background:#BA55D3; border-radius:3px; width:100%; transition:width 0.3s;"></div>
-                            </div>
-                            <div style="font-size:10px; margin-top:4px;" id="bucket-dopamine-status"></div>
-                        </div>
-                    </div>
-
-                    <!-- Allocation settings -->
-                    <div style="background:#1a1216; border-radius:8px; padding:14px; margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-size:13px; font-weight:500; color:#d4ccc8;">Paycheck Allocation</span>
-                            <button class="finance-btn-sm" onclick="openBucketSettings()">edit split</button>
-                        </div>
-                        <div style="font-size:12px; color:#9a8a92;" id="bucket-allocation-summary">
-                            Set up your paycheck split to auto-fill buckets.
-                        </div>
-                    </div>
-
-                    <!-- Cash withdrawal reminder -->
-                    <div style="background:rgba(255,204,0,0.06); border-left:3px solid #e8b84b; border-radius:6px; padding:10px 14px; font-size:12px; color:#e8b84b; margin-bottom:10px; display:none;" id="bucket-cash-reminder">
-                        💵 Payday reminder: withdraw your cash — emergency stash + squirrel fund
-                    </div>
-
-                    <!-- Quick actions -->
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button class="finance-add-btn" onclick="openPaycheckForm()" style="flex:1; min-width:140px;">💰 Log Paycheck</button>
-                        <button class="finance-add-btn" onclick="openBucketSpend()" style="flex:1; min-width:140px;">💸 Log Spending</button>
-                        <button class="finance-add-btn" onclick="moveBucketMoney()" style="flex:1; min-width:140px;">↔ Move Money</button>
-                    </div>
-                </div>
-
-                <!-- ===== ACCOUNTS PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-accounts">
-                    <div id="fin-accounts-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('account')">+ Add Account</button>
-                </div>
-
-                <!-- ===== BILLS PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-bills">
-                    <div id="fin-bills-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('bill')">+ Add Bill</button>
-                </div>
-
-                <!-- ===== INCOME PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-income">
-                    <div id="fin-income-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('income')">+ Add Income</button>
-                </div>
-
-                <!-- ===== TRANSACTION LOG PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-log">
-                    <div id="fin-log-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('transaction')">+ Add Transaction</button>
-                </div>
-
-                <!-- ===== DEBT PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-debt">
-                    <!-- Debt summary boxes — total owed, monthly interest burn, etc -->
-                    <div class="finance-summary" id="debt-summary-bar">
-                        <div class="finance-summary-box">
-                            <div class="fs-label">Total Owed</div>
-                            <div class="fs-value negative" id="debt-total-owed">$0.00</div>
-                        </div>
-                        <div class="finance-summary-box">
-                            <div class="fs-label">Monthly Interest</div>
-                            <div class="fs-value negative" id="debt-monthly-interest">$0.00</div>
-                        </div>
-                        <div class="finance-summary-box">
-                            <div class="fs-label">Min. Payments</div>
-                            <div class="fs-value bills-due" id="debt-min-payments">$0.00</div>
-                        </div>
-                    </div>
-
-                    <!-- Payoff projection — when are you free? -->
-                    <div class="alert-row level-yellow" id="debt-payoff-projection" style="display:none;">
-                        <span class="alert-icon">📅</span>
-                        <div class="alert-body">
-                            <span class="alert-text" id="debt-payoff-text">Loading...</span>
-                            <span class="alert-ref" id="debt-payoff-detail"></span>
-                        </div>
-                    </div>
-
-                    <!-- Strategy recommendation -->
-                    <div class="alert-row level-green" id="debt-strategy-box" style="display:none;">
-                        <span class="alert-icon">🎯</span>
-                        <div class="alert-body">
-                            <span class="alert-text" id="debt-strategy-text">Loading...</span>
-                            <span class="alert-ref" id="debt-strategy-detail"></span>
-                        </div>
-                    </div>
-
-                    <!-- Individual debt cards -->
-                    <div id="fin-debt-list"></div>
-                    <button class="finance-add-btn" onclick="openFinanceForm('debt')">+ Add Debt</button>
-                </div>
-
-                <!-- ===== BUDGET OVERVIEW PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-budget">
-                    <!-- The money waterfall — shows how income flows through each bucket -->
-                    <div id="budget-waterfall"></div>
-
-                    <!-- Emergency fund tracker -->
-                    <div style="margin-top: 16px; padding: 14px; background: #1a1216; border-radius: 8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-size:14px; font-weight:500; color:#d4ccc8;">🛡 Emergency Fund</span>
-                            <button class="finance-btn-sm" onclick="openFinanceForm('emergency')">set goal</button>
-                        </div>
-                        <!-- Progress bar -->
-                        <div style="width:100%; height:20px; background:#3d2f35; border-radius:10px; overflow:hidden; margin-bottom:6px;">
-                            <div id="ef-progress-bar" style="height:100%; background: linear-gradient(90deg, #d4849a, #e8b84b, #b48db5); border-radius:10px; width:0%; transition: width 0.5s;"></div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; font-size:12px; color:#9a8a92;">
-                            <span id="ef-current">$0</span>
-                            <span id="ef-percent">0%</span>
-                            <span id="ef-goal">Goal: $0</span>
-                        </div>
-                        <p id="ef-months-to-goal" style="font-size:12px; color:#9a8a92; margin-top:6px;"></p>
-                    </div>
-
-                    <!-- Smart suggestion box -->
-                    <div class="alert-row level-green" id="budget-suggestion" style="margin-top:12px;">
-                        <span class="alert-icon">💡</span>
-                        <div class="alert-body">
-                            <span class="alert-text" id="budget-suggestion-text">Add your accounts, bills, and debts to get personalized budget suggestions.</span>
-                            <span class="alert-ref" id="budget-suggestion-detail"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ===== SPENDING TRACKER PANEL ===== -->
-                <div class="finance-panel" id="fin-panel-spending">
-                    <p style="font-size:13px; color:#9a8a92; margin-bottom:12px;">Track variable spending — groceries, gas, pet supplies, etc. Not bills, just life money going out.</p>
-
-                    <!-- Quick-add row -->
-                    <div class="spending-quick-add">
-                        <select id="sp-category">
-                            <option value="Groceries">🛒 Groceries</option>
-                            <option value="Gas">⛽ Gas</option>
-                            <option value="Pet Supplies">🐾 Pet Supplies</option>
-                            <option value="Household">🏠 Household</option>
-                            <option value="Medical Copay">💊 Medical Copay</option>
-                            <option value="Dining/Takeout">🍕 Dining / Takeout</option>
-                            <option value="Personal Care">💅 Personal Care</option>
-                            <option value="Kids">🧒 Kids</option>
-                            <option value="Other">📦 Other</option>
-                        </select>
-                        <input type="number" id="sp-amount" placeholder="$0.00" step="0.01" min="0">
-                        <input type="text" id="sp-note" placeholder="Note (optional)">
-                        <button class="finance-add-btn" style="margin:0; padding:8px 16px; white-space:nowrap;" onclick="addSpendingEntry()">+ Add</button>
-                    </div>
-
-                    <!-- This month summary -->
-                    <div id="spending-month-label" style="font-size:11px; color:#9a8a92; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px;"></div>
-                    <div id="spending-cat-grid" class="spending-cat-grid"></div>
-
-                    <!-- Recent entries -->
-                    <div style="font-size:11px; color:#9a8a92; letter-spacing:1px; text-transform:uppercase; margin:4px 0 8px;">Recent</div>
-                    <div id="spending-entries-list"></div>
-                </div>
-
+        <div class="card full-width" style="min-height:420px; display:flex; align-items:center; justify-content:center; text-align:center; background:linear-gradient(135deg,#251c21,#2a1f24);">
+            <div style="max-width:560px; padding:20px;">
+                <div style="font-size:82px; line-height:1; margin-bottom:16px;">🐶</div>
+                <h2 style="font-size:30px; margin-bottom:10px; color:#f0eae8;">Money</h2>
+                <p style="font-size:18px; color:#d4ccc8; margin-bottom:10px;">Under construction.</p>
+                <p style="font-size:13px; color:#9a8a92;">The new Waterfall tab is being built. For now this is just the placeholder front screen.</p>
             </div>
         </div>
-
-        <!-- ===== FINANCE POPUP FORM (appears on top of everything) ===== -->
-        <div class="finance-form-overlay" id="fin-form-overlay" onclick="closeFinanceForm(event)">
-            <div class="finance-form" id="fin-form">
-                <h3 id="fin-form-title">Add Item</h3>
-                <div id="fin-form-fields"></div>
-                <div class="finance-form-actions">
-                    <button class="finance-btn-cancel" onclick="closeFinanceForm()">Cancel</button>
-                    <button class="finance-btn-save" onclick="saveFinanceForm()">Save</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===== PAYCHECK CONFIRM — "Every dollar has a job" moment ===== -->
-        <div class="finance-form-overlay" id="paycheck-confirm-overlay" style="display:none;" onclick="closePaycheckConfirm()">
-            <div class="finance-form" style="max-width:340px; text-align:center;" onclick="event.stopPropagation()">
-                <div style="font-size:36px; margin-bottom:6px;">💰</div>
-                <div style="font-size:20px; font-weight:700; color:#d4ccc8; margin-bottom:2px;">Paycheck logged!</div>
-                <div id="pc-amount" style="font-size:14px; color:#9a8a92; margin-bottom:20px;"></div>
-
-                <!-- Split breakdown -->
-                <div id="pc-split" style="text-align:left; background:#1a1216; border-radius:10px; padding:14px; margin-bottom:14px;"></div>
-
-                <!-- Every dollar assigned confirmation -->
-                <div style="font-size:13px; color:#6bbf7b; font-weight:600; margin-bottom:14px; letter-spacing:0.3px;">
-                    ✓ Every dollar has a job
-                </div>
-
-                <!-- New Safe to Spend -->
-                <div style="background:#1a1216; border-radius:10px; padding:14px; margin-bottom:20px;">
-                    <div style="font-size:10px; color:#9a8a92; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Safe to Spend</div>
-                    <div id="pc-safe-to-spend" style="font-size:32px; font-weight:700;">$—</div>
-                    <div id="pc-safe-sub" style="font-size:11px; color:#6b5660; margin-top:2px;"></div>
-                </div>
-
-                <button class="finance-btn-save" onclick="closePaycheckConfirm()" style="width:100%; font-size:15px; padding:12px;">Got it 👍</button>
-            </div>
-        </div>
-
-    </div><!-- /grid money -->
+    </div>
     </div><!-- /tab-money -->
 
     <!-- ====== TAB: LIFE (part 2 — calendar, meds, animals, etc.) ====== -->
@@ -7218,7 +6811,7 @@
             saveData('finance_preloaded_v2', true);
 
             // Render everything now that data is loaded
-            renderFinance();
+            // renderFinance(); // OLD — money pod handles rendering
         }
 
         // --- BILL DATA NORMALIZER (runs every page load — safe to repeat) ---
@@ -7536,7 +7129,7 @@
             if (updated) {
                 saveData('fin_accounts', finAccounts);
                 saveData('fin_bills', finBills);
-                renderFinance();
+                // renderFinance(); // OLD — money pod handles rendering
             }
         }
 
@@ -7642,10 +7235,10 @@
                 saveBuckets();
                 document.getElementById('fin-form-overlay').classList.remove('show');
                 currentFormType = null;
-                renderFinance();
+                // renderFinance(); // OLD — money pod handles rendering
                 renderStove();
                 renderBuckets();
-                renderBrain(); // update brain BEFORE reading its values for confirm screen
+                // renderBrain(); // OLD — money pod handles rendering
                 showPaycheckConfirm(amount, split);
                 return;
 
@@ -7689,7 +7282,7 @@
 
                 document.getElementById('fin-form-overlay').classList.remove('show');
                 currentFormType = null;
-                renderFinance();
+                // renderFinance(); // OLD — money pod handles rendering
                 renderStove();
                 renderBuckets();
 
@@ -7857,7 +7450,7 @@
 
             // If anything changed, re-render everything
             if (changed) {
-                renderFinance();
+                // renderFinance(); // OLD — money pod handles rendering
             }
         }
 
@@ -7967,11 +7560,11 @@
             finSpending = loadData('fin_spending') || [];
 
             // Step 3: Run preload + migrations AFTER data is loaded
-            preloadFinanceData();
-            runBillMigrations();
+            // preloadFinanceData();   // OLD — money pod handles this now
+            // runBillMigrations();    // OLD — money pod handles this now
             runAutomations();
 
-            await fetchBankBalances();
+            // await fetchBankBalances();  // OLD — money pod handles bank sync
             getWeather();
             getPollen();
 
@@ -7979,7 +7572,7 @@
             renderKidTracker();
             renderTimestamps();
 
-            renderFinance();
+            // renderFinance();  // OLD — money pod handles rendering
             renderRightNow();
         }
 
@@ -8235,6 +7828,9 @@
         }
 
     </script>
+
+    <!-- Money engine — pure waterfall math for the money demo -->
+    <script src="money-engine.js"></script>
 
     <!-- Assistant pod — all task management logic -->
     <script src="assistant.js"></script>
